@@ -1,0 +1,4 @@
+Clearsoup
+tornado==3.1
+mongoengine==0.8.3
+passlib>1.6
