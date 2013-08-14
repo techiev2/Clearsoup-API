@@ -1,12 +1,13 @@
+
 import sys
 sys.dont_write_bytecode = True
 
-from datetime import datetime, timedelta
-from mongoengine.base import ValidationError
-from bson.objectid import ObjectId
+import ast
+from datetime import datetime
+import urllib
 
 from requires.base import BaseHandler
-from datamodels.user import User, Session, SessionManager
+from datamodels.session import Session, SessionManager
 
 
 class Authenticate(BaseHandler):
@@ -21,14 +22,22 @@ class Authenticate(BaseHandler):
         'POST': ('email','password')
         }
 
+    def clean_oauth_data(self, oauth_data):
+        return ast.literal_eval(urllib.unquote(oauth_data))
+
     def post(self, *args, **kwargs):
         """
         HTTP POST Request handler method.
         Authenticates the user, generates session token and sends
         it to the client
         """
-        print self.get_argument('email')
-        user = SessionManager.validateLogin(email=self.get_argument('email'),
+        google_oauth = self.get_argument('google_oauth', None)
+        if google_oauth:
+            google_oauth = self.clean_oauth_data(google_oauth)
+            email = google_oauth['email']
+            user = SessionManager.validateOauthLogin(email=email)
+        else:
+            user = SessionManager.validateLogin(email=self.get_argument('email'),
                                             username=self.get_argument('email'),
                                             password=self.get_argument('password'))
         if user:
