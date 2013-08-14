@@ -3,13 +3,16 @@ Created on 06-Aug-2013
 
 @author: someshs
 '''
+import json
 from tornado.web import HTTPError
+from mongoengine.errors import ValidationError
+
 from requires.base import BaseHandler, authenticated
 from datamodels.project import Project
-from mongoengine.errors import ValidationError
+from datamodels.organization import Organization
 from utils.app import millisecondToDatetime
 from utils.dumpers import json_dumper
-import json
+
 
 class ProjectHandler(BaseHandler):
     
@@ -28,6 +31,12 @@ class ProjectHandler(BaseHandler):
             
             Besides above, it also cleans the date-time values and duration
         '''
+        if 'organization' in self.data.keys():
+            org = Organization.get_organization_object(self.data['organization'])
+            if not org:
+                self.send_error(404)
+            else:
+                self.data['organization'] = org
         [self.data.pop(key) for key in self.data.keys()
          if key not in Project._fields.keys()]
         for k in ['start_date', 'end_date']:
@@ -37,21 +46,12 @@ class ProjectHandler(BaseHandler):
             self.data['created_by'] = self.current_user
         self.data['updated_by'] = self.current_user
 
-    @classmethod
-    def get_project_object(cls, sequence):
-        try:
-            project = Project.objects.get(sequence=sequence)
-            project.update(set__active=False)
-        except Project.DoesNotExist:
-            project = None
-        return project
-
     @authenticated
     def get(self,*args, **kwargs):
         sequence = self.get_argument('id', None)
         response = None
         if sequence:
-            project = self.get_project_object(sequence)
+            project = Project.get_project_object(sequence)
             if not project:
                 self.send_error(404)
             else:
@@ -70,7 +70,7 @@ class ProjectHandler(BaseHandler):
         """TBD"""
         sequence = self.get_argument('id', None)
         response = None
-        project = self.get_project_object(sequence)
+        project = Project.get_project_object(sequence)
         if not project:
             self.send_error(404)
         else:
@@ -90,7 +90,7 @@ class ProjectHandler(BaseHandler):
     @authenticated
     def delete(self, *args, **kwargs):
         sequence = self.get_argument('id', None)
-        project = self.get_project_object(sequence)
+        project = Project.get_project_object(sequence)
         if not project:
             self.send_error(404)
         else:
