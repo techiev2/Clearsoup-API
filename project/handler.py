@@ -38,7 +38,7 @@ class ProjectHandler(BaseHandler):
         self.data['updated_by'] = self.current_user
 
     @classmethod
-    def get_project_object(self, sequence):
+    def get_project_object(cls, sequence):
         try:
             project = Project.objects.get(sequence=sequence)
             project.update(set__active=False)
@@ -67,6 +67,7 @@ class ProjectHandler(BaseHandler):
 
     @authenticated
     def post(self, *args, **kwargs):
+        """TBD"""
         sequence = self.get_argument('id', None)
         response = None
         project = self.get_project_object(sequence)
@@ -83,7 +84,7 @@ class ProjectHandler(BaseHandler):
         try:
             project.save(validate=True, clean=True)
         except ValidationError, error:
-            raise HTTPError(500, 'Could not create Project')
+            raise HTTPError(500, **{'reason':self.error_message(error)})
         self.write(project.to_json())
 
     @authenticated
