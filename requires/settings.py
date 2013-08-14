@@ -29,9 +29,10 @@ class ClearSoupApp(Application, object):
 GEN_PATH = lambda path: os.path.join(os.getcwd(), path)
 
 SETTINGS = {
-    'APPS': [ 'project', 'auth', 'core', 'user'],
+    'APPS': [ 'project', 'story', 'auth', 'core', 'user'],
 	# Security
     'cookie': 'token',  # Specify the cookie variable name
+    'login_url': '/api/authenticate/',  # Login path for the application
 	'cookie_secret': '$2a$12$/Afye1F0vhEK.EPm0xYLdebypPjz0tnI.iiYhpIUMmCjCnsBwNd/6',
 	# Templating
     'debug': True,  # Retain debug True for development.
