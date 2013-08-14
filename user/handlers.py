@@ -1,7 +1,14 @@
+import ast
+import urllib
+
 from tornado.web import HTTPError
 from mongoengine import ValidationError
+from mongoengine.queryset import Q
 from requires.base import BaseHandler, authenticated
-from datamodels.user import User, Session, SessionManager
+from datamodels.session import SessionManager
+from datamodels.user import User
+from datamodels.project import Project
+
 
 class UserHandler(BaseHandler):
 
@@ -10,22 +17,28 @@ class UserHandler(BaseHandler):
         'PUT': ('username','password','email')
         }
     
+    def clean_oauth_data(self, oauth_data):
+        return ast.literal_eval(urllib.unquote(oauth_data))
+
     def put(self, *args, **kwargs):
         """
         Register a new user
         """
         data = self.data
+        google_oauth = None
+        if 'google_oauth' in data.keys():
+            google_oauth = self.clean_oauth_data(data['google_oauth'])
+            data.pop('google_oauth')
+        
         user = User(**data)
         # Password has to be hashed
         user.password = SessionManager.encryptPassword(user.password)
         
         try:
             user.save(validate=True, clean=True)
+            user.update_profile(google_oauth)
         except ValidationError, error:
-            error_data = {
-                'reason': error.to_dict()['__all__']
-            }
-            raise HTTPError(403, **error_data)
+            raise HTTPError(403, **{'reason': self.error_message(error)})
         
         if user:
             self.finish({
@@ -39,6 +52,9 @@ class UserHandler(BaseHandler):
             username = self.current_user.username
         try:
             user = User.objects.get(username=username)
+            projects = Project.objects.filter(
+                          Q(admin__in=user)|Q(members__in=user)
+                          ).exclude('start_date', 'end_date', 'sprints', )
             self.write(user.to_json())
         except User.DoesNotExist:
             self.send_error(404)
