@@ -17,7 +17,8 @@ from utils.dumpers import json_dumper
 
 class Project(me.Document):
     organization = me.ReferenceField('Organization',required=False,
-                                     reverse_delete_rule=me.CASCADE)
+                                     reverse_delete_rule=me.CASCADE, 
+                                     default=None)
     # these four will come in request data for put
     title = me.StringField(max_length=64, required=True, unique=True)
     start_date = me.DateTimeField(default=datetime.utcnow())
@@ -62,10 +63,16 @@ class Project(me.Document):
             raise ValidationError('start date should be greater than end date.')
 
     @classmethod
-    def last_project_id(cls):
+    def last_project_id(cls, organization=None):
         sequence = None
-        if Project.objects:
-            sequence = list(Project.objects.order_by('sequence'))[-1].sequence
+        if not organization:
+            if Project.objects:
+                sequence = list(Project.objects.order_by('sequence'))[-1].sequence
+        elif organization:
+            projects = Project.objects.filter(organization=organization
+                                          ).order_by('sequence')
+            if projects:
+                sequence = list(projects)[-1].sequence
         return sequence
 
     @classmethod
@@ -74,7 +81,7 @@ class Project(me.Document):
         1. check if project already exists,
         2. create id for project
         '''
-        last_sequence = cls.last_project_id()
+        last_sequence = cls.last_project_id(document.organization)
         if last_sequence:
             document.sequence = last_sequence + 1
         else:
@@ -153,6 +160,22 @@ class Project(me.Document):
                                                 len(self.sprints)-1))
         return curr_sprint
     
+    @classmethod
+    def get_project_object(cls, sequence=None, organization=None):
+        if not organization:
+            try:
+                project = Project.objects.get(sequence=sequence)
+                project.update(set__active=False)
+            except Project.DoesNotExist:
+                project = None
+        elif organization:
+            try:
+                project = Project.objects.get(sequence=sequence,
+                                              organization=organization)
+            except Project.DoesNotExist:
+                project = None
+        return project
+
     def save(self, *args, **kwargs):
         '''
             call save only in case of project PUT.
@@ -182,7 +205,6 @@ class Project(me.Document):
 
 
 class Sprint(me.Document):
-
     start_date = me.DateTimeField()
     end_date = me.DateTimeField()
     sequence = me.IntField(required=True, default=0, unique_with='project')
