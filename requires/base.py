@@ -6,12 +6,13 @@ validation and utilities to our Handlers
 import sys
 sys.dont_write_bytecode = True
 
-import tornado.escape
 import base64
-
+import tornado.escape
 from tornado.web import HTTPError, MissingArgumentError
 from functools import wraps
-from datamodels.user import SessionManager, User
+
+from datamodels.session import SessionManager 
+
 
 CONTENT_TYPES = {
     'json': 'application/json'
@@ -71,7 +72,10 @@ class BaseHandler(tornado.web.RequestHandler):
         Return a readable error message.
         '''       
         if hasattr(error, 'to_dict'):
-            message = error.to_dict().values()[0]
+            if error.to_dict().values():
+                message = error.to_dict().values()[0]
+            else:
+                message = error.message
         else:
             message = error.message
         return str(message)

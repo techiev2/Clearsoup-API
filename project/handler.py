@@ -10,6 +10,7 @@ from mongoengine.errors import ValidationError
 from requires.base import BaseHandler, authenticated
 from datamodels.project import Project
 from datamodels.update import Update
+from datamodels.organization import Organization
 from utils.app import millisecondToDatetime
 from utils.dumpers import json_dumper
 
@@ -31,6 +32,12 @@ class ProjectHandler(BaseHandler):
             
             Besides above, it also cleans the date-time values and duration
         '''
+        if 'organization' in self.data.keys():
+            org = Organization.get_organization_object(self.data['organization'])
+            if not org:
+                self.send_error(404)
+            else:
+                self.data['organization'] = org
         [self.data.pop(key) for key in self.data.keys()
          if key not in Project._fields.keys()]
         for k in ['start_date', 'end_date']:
@@ -40,7 +47,8 @@ class ProjectHandler(BaseHandler):
             self.data['created_by'] = self.current_user
         self.data['updated_by'] = self.current_user
 
-    def get_project_object(sequence):
+    @classmethod
+    def get_project_object(self, sequence):
         try:
             project = Project.objects.get(sequence=sequence)
             project.update(set__active=False)
@@ -53,7 +61,7 @@ class ProjectHandler(BaseHandler):
         sequence = self.get_argument('id', None)
         response = None
         if sequence:
-            project = self.get_project_object(sequence)
+            project = Project.get_project_object(sequence)
             if not project:
                 self.send_error(404)
             else:
@@ -69,9 +77,10 @@ class ProjectHandler(BaseHandler):
 
     @authenticated
     def post(self, *args, **kwargs):
+        """TBD"""
         sequence = self.get_argument('id', None)
         response = None
-        project = self.get_project_object(sequence)
+        project = Project.get_project_object(sequence)
         if not project:
             self.send_error(404)
         else:
@@ -85,13 +94,13 @@ class ProjectHandler(BaseHandler):
         try:
             project.save(validate=True, clean=True)
         except ValidationError, error:
-            raise HTTPError(500, 'Could not create Project')
+            raise HTTPError(500, **{'reason':self.error_message(error)})
         self.write(project.to_json())
 
     @authenticated
     def delete(self, *args, **kwargs):
         sequence = self.get_argument('id', None)
-        project = self.get_project_object(sequence)
+        project = Project.get_project_object(sequence)
         if not project:
             self.send_error(404)
         else:
