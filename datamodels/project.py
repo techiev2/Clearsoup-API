@@ -26,7 +26,8 @@ class Project(me.Document):
     start_date = me.DateTimeField(default=datetime.utcnow())
     end_date = me.DateTimeField(default=datetime.utcnow())
     duration = me.IntField() #  sprint duration
-    
+    updates = me.ListField()
+
     # following has to be updated at time of saving object
     sequence = me.IntField()
     sprints = me.ListField()

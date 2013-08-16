@@ -3,13 +3,16 @@ Created on 06-Aug-2013
 
 @author: someshs
 '''
+import json
 from tornado.web import HTTPError
+from mongoengine.errors import ValidationError
+
 from requires.base import BaseHandler, authenticated
 from datamodels.project import Project
-from mongoengine.errors import ValidationError
+from datamodels.update import Update
 from utils.app import millisecondToDatetime
 from utils.dumpers import json_dumper
-import json
+
 
 class ProjectHandler(BaseHandler):
     
@@ -37,8 +40,7 @@ class ProjectHandler(BaseHandler):
             self.data['created_by'] = self.current_user
         self.data['updated_by'] = self.current_user
 
-    @classmethod
-    def get_project_object(self, sequence):
+    def get_project_object(sequence):
         try:
             project = Project.objects.get(sequence=sequence)
             project.update(set__active=False)
@@ -96,3 +98,68 @@ class ProjectHandler(BaseHandler):
             project.update(set__active=False)
             self.write(project.to_json())
 
+
+class UpdateHandler(BaseHandler):
+    """
+    Project updates handler
+    Since an update is always tied to a project context,
+    this is handled within the project    
+    """
+    SUPPORTED_METHODS = ('GET', 'PUT', 'DELETE')
+    REQUIRED_FIELDS   = {
+        # 'GET': ('project',),
+        'PUT': ('text',),
+        'DELETE' : ('id',)
+        }
+
+    def get_project(self, project_name):
+        try:
+            project = Project.objects.get(title__iexact=project_name)
+            # project.update(set__active=False)
+        except Project.DoesNotExist:
+            project = None
+        return project
+
+    @authenticated
+    def put(self, project, *args, **kwargs):
+        # Get the project object
+        # project_id = self.get_argument('project_id', None)
+        project = self.get_project(project)
+        if not project:
+            self.send_error(404)
+        # Create a new update
+        update = Update()
+        update.created_by = self.current_user
+        update.project = project
+        update.text = self.get_argument('text', None)
+        try:
+            update.save()
+        except Exception:
+            raise HTTPError(500, 'Could not save update')
+
+        self.write({
+            'status': 200,
+            'message': 'Update saved successfully'
+            })
+
+    @authenticated
+    def get(self, project, *args, **kwargs):
+        project = self.get_project(project)
+        if not project:
+            self.send_error(404)
+        # Retrieve updates
+        updates = None
+        try:
+            updates = Update.objects(project=project)
+        except Exception:
+            raise HTTPError(404)
+
+        if not updates:
+            raise HTTPError(404)
+
+        response = json_dumper(updates)
+        self.finish(json.dumps(response))
+
+    @authenticated
+    def delete(self, *args, **kwargs):
+        pass
