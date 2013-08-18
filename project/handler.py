@@ -7,7 +7,7 @@ import json
 from tornado.web import HTTPError
 from mongoengine.errors import ValidationError
 
-from requires.base import BaseHandler, authenticated
+from requires.base import BaseHandler, authenticated, validate_path_arg
 from datamodels.project import Project
 from datamodels.update import Update
 from datamodels.organization import Organization
@@ -130,6 +130,7 @@ class UpdateHandler(BaseHandler):
         return project
 
     @authenticated
+    @validate_path_arg
     def put(self, project, *args, **kwargs):
         # Get the project object
         # project_id = self.get_argument('project_id', None)
