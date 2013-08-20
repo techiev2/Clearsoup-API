@@ -9,7 +9,7 @@ from mongoengine.errors import ValidationError
 
 from requires.base import BaseHandler, authenticated
 from datamodels.project import Project
-from datamodels.organization import Organization
+from datamodels.permission import ProjectPermission
 from utils.app import millisecondToDatetime
 from utils.dumpers import json_dumper
 
@@ -31,12 +31,6 @@ class ProjectHandler(BaseHandler):
             
             Besides above, it also cleans the date-time values and duration
         '''
-        if 'organization' in self.data.keys():
-            org = Organization.get_organization_object(self.data['organization'])
-            if not org:
-                self.send_error(404)
-            else:
-                self.data['organization'] = org
         [self.data.pop(key) for key in self.data.keys()
          if key not in Project._fields.keys()]
         for k in ['start_date', 'end_date']:
@@ -51,11 +45,11 @@ class ProjectHandler(BaseHandler):
         sequence = self.get_argument('id', None)
         response = None
         if sequence:
-            project = Project.get_project_object(sequence)
-            if not project:
-                self.send_error(404)
-            else:
+            try:
+                project = Project.get_project_object(sequence)
                 response = project.to_json()
+            except ValidationError, error:
+                raise HTTPError(404, **{'reason': self.error_message(error)})
         else:
             # Check if we are returning a list of projects for
             # the logged in user
@@ -70,12 +64,18 @@ class ProjectHandler(BaseHandler):
         """TBD"""
         sequence = self.get_argument('id', None)
         response = None
-        project = Project.get_project_object(sequence)
-        if not project:
-            self.send_error(404)
-        else:
+        try:
+            project = Project.get_project_object(sequence)
             response = project.to_json()
-        self.write(response)
+            self.write(response)
+        except ValidationError, error:
+            raise HTTPError(404, **{'reason': self.error_message(error)})
+
+    def set_user_permission(self, project):
+        p = ProjectPermission(project=project,
+                          user=self.current_user,
+                          map=2047)
+        p.save()
 
     @authenticated
     def put(self, *args, **kwargs):
@@ -83,6 +83,7 @@ class ProjectHandler(BaseHandler):
         project = Project(**self.data)
         try:
             project.save(validate=True, clean=True)
+            self.set_user_permission(project)
         except ValidationError, error:
             raise HTTPError(500, **{'reason':self.error_message(error)})
         self.write(project.to_json())
@@ -90,10 +91,11 @@ class ProjectHandler(BaseHandler):
     @authenticated
     def delete(self, *args, **kwargs):
         sequence = self.get_argument('id', None)
-        project = Project.get_project_object(sequence)
-        if not project:
-            self.send_error(404)
-        else:
+        try:
+            project = Project.get_project_object(sequence)
             project.update(set__active=False)
             self.write(project.to_json())
+        except ValidationError, error:
+            raise HTTPError(404, **{'reason': self.error_message(error)})
+
 
