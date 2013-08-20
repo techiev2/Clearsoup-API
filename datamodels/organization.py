@@ -15,13 +15,13 @@ from utils.dumpers import json_dumper
 
 class Organization(me.Document):
     name = me.StringField(required=True, max_length=30, unique=True)
-    admin = me.ReferenceField('User')
-    owners = me.ListField(me.ReferenceField('User'))
+    admin = me.ReferenceField('User', dbref=True)
+    owners = me.ListField(me.ReferenceField('User', dbref=True))
 
     created_at = me.DateTimeField(default=datetime.utcnow)
     updated_at = me.DateTimeField(default=datetime.utcnow)
-    created_by = me.ReferenceField('User', required=False)
-    updated_by = me.ReferenceField('User', required=False)
+    created_by = me.ReferenceField('User', required=False, dbref=True)
+    updated_by = me.ReferenceField('User', required=False, dbref=True)
     is_active = me.BooleanField(default=True)
 
     meta = {
@@ -54,10 +54,11 @@ class Organization(me.Document):
     def get_organization_object(cls, name):
         try:
             org = Organization.objects.get(name=name)
-        except Organization.DoesNotExist:
-            org = None
+        except Organization.DoesNotExist, error:
+            raise ValidationError(error.message)
         return org
-    
+
+
     def get_organization_profile(self):
         org_profile = OrganizationProfile.objects.filter(organization=self)
         if org_profile:
@@ -73,7 +74,7 @@ class Organization(me.Document):
 class OrganizationProfile(me.Document):
     display_name = me.StringField(max_length=64, default=None)
     organization = me.ReferenceField('Organization', required=True,
-                                     unique=True)
+                                     unique=True, reverse_delete_rule=True)
     url = me.URLField()
     location = me.StringField()
     logo = me.ImageField()
