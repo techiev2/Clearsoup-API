@@ -24,10 +24,12 @@ class Story(me.Document):
     
     project = me.ReferenceField('Project',
                                 reverse_delete_rule=me.CASCADE,
-                                required=True)
+                                required=True,
+                                dbref=True)
     sprint = me.ReferenceField(Sprint,
                                required=False,
-                               reverse_delete_rule=me.CASCADE)
+                               reverse_delete_rule=me.CASCADE,
+                               dbref=True)
     
     title = me.StringField(required=True,
                              max_length=128,
@@ -40,10 +42,9 @@ class Story(me.Document):
 
     created_at = me.DateTimeField(default=datetime.utcnow)
     updated_at = me.DateTimeField(default=datetime.utcnow)
-    created_by = me.ReferenceField('User', required=False)
-    updated_by = me.ReferenceField('User', required=False)
+    created_by = me.ReferenceField('User', required=True, dbref=True)
+    updated_by = me.ReferenceField('User', required=True, dbref=True)
     is_active = me.BooleanField(default=True)
-
 
     meta = {
         'indexes': ['title', 'project', 'sequence']
