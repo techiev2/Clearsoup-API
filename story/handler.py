@@ -49,18 +49,16 @@ class StoryHandler(BaseHandler):
             except ValidationError, error:
                 raise HTTPError(404, **{'reason': self.error_message(error)})
 
-    @classmethod
-    def get_project_object(cls, sequence):
+    def get_project_object(self, sequence):
         try:
-            project = Project.objects.get(sequence=sequence,
-                                          is_active=True)
-        except Project.DoesNotExist:
-            project = None
+            project = Project.get_project_object(sequence=sequence)
+            print 55
+        except ValidationError, error:
+            raise HTTPError(404, **{'reason': self.error_message(error)})
         return project
 
     @authenticated
     def put(self, *args, **kwargs):
-        self.data = self.json_args
         self.clean_request()
         story = Story(**self.data)
         try:
@@ -72,7 +70,7 @@ class StoryHandler(BaseHandler):
     def get_project_stories(self, project_id):
         project = self.get_project_object(project_id)
         if project and self.current_user in project.members:
-            return project.get_story_list()
+            return Project.get_story_list(project)
         else:
             self.send_error(404)
 
@@ -83,7 +81,7 @@ class StoryHandler(BaseHandler):
         response = None
         if story_id and not project_id:
             self.send_error(400)
-        if project_id and project_id:
+        if project_id :
             project = self.get_project_object(project_id)
             if project and story_id:
                 try:
@@ -104,26 +102,20 @@ class StoryHandler(BaseHandler):
     def post(self, *args, **kwargs):
         '''TBD'''
         sequence = self.get_argument('id', None)
-        response = None
         project = self.get_project_object(sequence)
-        if not project:
-            self.send_error(404)
-        else:
-            response = project.to_json()
-        self.write(response)
+        self.write(project.to_json())
 
     @authenticated
     def delete(self, *args, **kwargs):
         story_id = self.get_argument('storyId', None)
-        if story_id:
+        if not story_id:
+            self.send_error(404)
+        else:
             try:
                 story = Story.objects.get(sequence=int(story_id))
                 story.update(set__is_active=False)
                 response = story.to_json()
             except Story.DoesNotExist, error:
                 raise HTTPError(500, **{'reason':self.error_message(error)})
-        else:
-            self.send_error(400)
         self.finish(json.dumps(response))
-
 
