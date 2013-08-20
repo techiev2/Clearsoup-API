@@ -34,12 +34,12 @@ class Project(me.Document):
     description = me.StringField(max_length=500)
     
     # these have to be moved to base model
-    created_by = me.ReferenceField('User', required=True)
-    updated_by = me.ReferenceField('User', required=True)
+    created_by = me.ReferenceField('User', required=True, dbref=True)
+    updated_by = me.ReferenceField('User', required=True, dbref=True)
     created_at = me.DateTimeField(default=datetime.utcnow())
     updated_at = me.DateTimeField(default=datetime.utcnow())
     deleted_at = me.DateTimeField()
-    deleted_by = me.ReferenceField('User')
+    deleted_by = me.ReferenceField('User', dbref=True)
     
 
     meta = {
@@ -81,13 +81,17 @@ class Project(me.Document):
         1. check if project already exists,
         2. create id for project
         '''
+        if document.organization and \
+            document.organization not in document.created_by.belongs_to:
+            raise ValidationError('You do not belong to this organization.')
+        
         last_sequence = cls.last_project_id(document.organization)
         if last_sequence:
             document.sequence = last_sequence + 1
         else:
             document.sequence = 1
         if len(document.title) > 64:
-            ValidationError('Title exceeds 64 characters')
+            raise ValidationError('Title exceeds 64 characters')
 
     @classmethod
     def post_save(cls, sender, document, **kwargs):
@@ -133,7 +137,7 @@ class Project(me.Document):
         
         # in case duration is of form 7K + 1, one sprint has to be added
         difference = project_duration - (self.duration * sprints)
-
+        
         if difference > 0 and difference < 7:
             sprints += 1
         
@@ -159,21 +163,22 @@ class Project(me.Document):
                                             sequence=(
                                                 len(self.sprints)-1))
         return curr_sprint
-    
+
     @classmethod
     def get_project_object(cls, sequence=None, organization=None):
         if not organization:
             try:
-                project = Project.objects.get(sequence=sequence)
-                project.update(set__active=False)
-            except Project.DoesNotExist:
-                project = None
+                project = Project.objects.get(sequence=sequence,
+                                              is_active=True)
+            except Project.DoesNotExist, error:
+                raise ValidationError(error.message)
         elif organization:
             try:
                 project = Project.objects.get(sequence=sequence,
-                                              organization=organization)
-            except Project.DoesNotExist:
-                project = None
+                                              organization=organization,
+                                              is_active=True)
+            except Project.DoesNotExist, error:
+                raise ValidationError(error.message)
         return project
 
     def save(self, *args, **kwargs):
@@ -197,10 +202,11 @@ class Project(me.Document):
             raise ValidationError(error)
         return sprint
 
-    def get_story_list(self):
+    @classmethod
+    def get_story_list(cls, project):
         # import is done here in order to resolve cyclic import
         from datamodels.story import Story
-        return Story.objects.filter(project=self, is_active=True
+        return Story.objects.filter(project=project, is_active=True
                                     ).order_by('created_at')
 
 
