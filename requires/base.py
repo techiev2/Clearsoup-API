@@ -11,7 +11,8 @@ import tornado.escape
 from tornado.web import HTTPError, MissingArgumentError
 from functools import wraps
 
-from datamodels.session import SessionManager 
+from datamodels.session import SessionManager
+from datamodels.project import Project
 
 
 CONTENT_TYPES = {
@@ -146,5 +147,28 @@ def authenticated(method):
     def wrapper(self, *args, **kwargs):
         if not self.current_user:
             raise HTTPError(403, 'Invalid session token')
+        return method(self, *args, **kwargs)
+    return wrapper
+
+
+def validate_path_arg(method):
+    """
+    Validates any object in the path
+    For ex: for route /api/project/<project_name>/, it automatically
+    validates the project_name parameter
+    This can be used as a decorator to validate common objects in a path
+    """
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        if 'project' in self.path_kwargs:
+            project_name = self.path_kwargs['project']
+            project = None
+            # Validate project
+            try:
+                project = Project.objects.get(title__iexact=project_name)
+            except Project.DoesNotExist:
+                project = None
+            if not project:
+                raise HTTPError(403, 'Invalid project')
         return method(self, *args, **kwargs)
     return wrapper
