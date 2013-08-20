@@ -29,7 +29,8 @@ class ClearSoupApp(Application, object):
 GEN_PATH = lambda path: os.path.join(os.getcwd(), path)
 
 SETTINGS = {
-    'APPS': [ 'project', 'story', 'auth', 'core', 'user', 'organization'],
+    'APPS': ['project', 'story','auth', 'core', 'user', 'team', 'permission',
+             'organization'],
 	# Security
     'cookie': 'token',  # Specify the cookie variable name
     'login_url': '/api/authenticate/',  # Login path for the application
@@ -43,6 +44,14 @@ SETTINGS = {
     'web_root': 'http://localhost:8000'
 }
 
+PROJECT_PERMISSIONS = ('can_add_story', 'can_edit_story', 'can_delete_story',
+                      'can_add_task', 'can_edit_task', 'can_delete_task',
+                      'can_edit_project', 'can_delete_project','can_add_member',
+                      'can_edit_member', 'can_delete_member',)
+
+ORGANIZATION_PERMISSIONS = ('can_add_project', 'can_edit_project',
+                            'can_delete_project','can_add_member',
+                            'can_edit_member', 'can_delete_member',)
 URLS = []
 
 if SETTINGS['APPS']:
