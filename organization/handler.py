@@ -8,6 +8,8 @@ from datetime import datetime
 from tornado.web import HTTPError
 from requires.base import BaseHandler, authenticated
 from datamodels.organization import Organization, OrganizationProfile
+from datamodels.permission import OrganizationPermission
+from datamodels.user import User
 from mongoengine.errors import ValidationError
 from utils.dumpers import json_dumper
 
@@ -28,21 +30,23 @@ class OrganizationHandler(BaseHandler):
                          'updated_by': self.current_user,
                          'admin': self.current_user})
 
-
     def validate_request(self, organization):
         if not organization:
             self.send_error(400)
         else:
-            return Organization.get_organization_object(organization)
+            try:
+                org = Organization.get_organization_object(organization)
+            except ValidationError, error:
+                raise HTTPError(404, **{'reason': self.error_message(error)})
+            return org
 
     @authenticated
     def get(self, *args, **kwargs):
         organization  = kwargs.get('organization', None)
         org = self.validate_request(organization)
-        if not org:
+        if org not in self.current_user.belongs_to:
             self.send_error(404)
-        else:
-            self.write(org.to_json())
+        self.write(org.to_json())
 
     @authenticated
     def post(self, *args, **kwargs):
@@ -55,14 +59,21 @@ class OrganizationHandler(BaseHandler):
 #        else:
 #            OrganizationProfile(**self.data)
 
+    def set_org_permission(self, org):
+        p = OrganizationPermission(organization=org,
+                          user=self.current_user,
+                          map=63)
+        p.save()
+
     @authenticated
     def put(self, *args, **kwargs):
-        OrganizationProfile.objects.delete()
         self.clean_request()
         org = Organization(**self.data)
         try:
             org.save(validate=True, clean=True)
+            self.current_user.update_organization_list(org)
             self.write(org.to_json())
+            self.set_org_permission(org)
             OrganizationProfile.objects.create(organization=org,
                                                created_by=self.current_user,
                                                updated_by=self.current_user)
@@ -73,11 +84,11 @@ class OrganizationHandler(BaseHandler):
     def delete(self, *args, **kwargs):
         organization  = kwargs.get('organization', None)
         org = self.validate_request(organization)
-        if not org:
-            self.send_error(404)
-        else:
-            org.delete()
-            self.write({'message': 'Deleted Successfully.'})
+        members = [user for user in User.objects if org in user.belongs_to]
+        [member.belongs_to.pop(member.belongs_to.index(org)) for
+         member in members]
+        org.delete()
+        self.write({'message': 'Deleted Successfully.'})
 
 
 class OrgProfileHandler(BaseHandler):
@@ -101,7 +112,11 @@ class OrgProfileHandler(BaseHandler):
         if not organization:
             self.send_error(400)
         else:
-            return Organization.get_organization_object(organization)
+            try:
+                org = Organization.get_organization_object(organization)
+            except ValidationError, error:
+                raise HTTPError(404, **{'reason': self.error_message(error)})
+            return org
 
     @authenticated
     def get(self, *args, **kwargs):
