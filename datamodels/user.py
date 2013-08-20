@@ -21,7 +21,7 @@ class User(me.Document):
     password = me.StringField(required=True)
     email = me.EmailField(required=True, unique=True)
     # Profile
-    profile = me.ReferenceField(UserProfile)
+    profile = me.ReferenceField('UserProfile', dbref=True)
     # Org
     belongs_to = me.ListField(me.ReferenceField('Organization'))
 
@@ -35,7 +35,7 @@ class User(me.Document):
 
     def to_json(self, fields=None, exclude=None):
         return json_dumper(self, fields, exclude)
-    
+
     def clean(self):
         if len(User.objects.filter(username=self.username)) > 0:
             raise ValidationError('Username already exists')
@@ -47,6 +47,13 @@ class User(me.Document):
             user_profile = UserProfile(google=google_oauth)
             user_profile.save()
             self.update(set__profile=user_profile)
+
+    def update_organization_list(self, organization=None):
+        if not self.belongs_to:
+            self.update(set__belongs_to=[organization])
+        else:
+            self.belongs_to.append(organization)
+            self.update(set__belongs_to=self.belongs_to)
 
     def save(self, *args, **kwargs):
         super(User, self).save(*args, **kwargs)
