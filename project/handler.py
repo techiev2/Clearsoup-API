@@ -41,18 +41,9 @@ class ProjectHandler(BaseHandler):
             self.data['created_by'] = self.current_user
         self.data['updated_by'] = self.current_user
 
-    @classmethod
-    def get_project_object(self, sequence):
-        try:
-            project = Project.objects.get(sequence=sequence)
-            project.update(set__active=False)
-        except Project.DoesNotExist:
-            project = None
-        return project
-
     @authenticated
     def get(self,*args, **kwargs):
-        sequence = self.get_argument('id', None)
+        sequence = self.get_argument('projectId', None)
         response = None
         if sequence:
             try:
@@ -125,7 +116,7 @@ class UpdateHandler(BaseHandler):
 
     def get_project(self, project_name):
         try:
-            project = Project.objects.get(title__iexact=project_name)
+            project = Project.objects.get(title__exact=project_name)
             # project.update(set__active=False)
         except Project.DoesNotExist:
             project = None
