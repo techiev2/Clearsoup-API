@@ -7,7 +7,9 @@ from mongoengine.queryset import Q
 from requires.base import BaseHandler, authenticated
 from datamodels.session import SessionManager
 from datamodels.user import User
+from datamodels.organization import Organization
 from datamodels.project import Project
+from utils.dumpers import json_dumper
 
 
 class UserHandler(BaseHandler):
@@ -51,11 +53,14 @@ class UserHandler(BaseHandler):
         if not username:
             username = self.current_user.username
         try:
+            response = {}
             user = User.objects.get(username=username)
-            projects = Project.objects.filter(
-                          Q(admin__in=user)|Q(members__in=user)
-                          ).exclude('start_date', 'end_date', 'sprints', )
-            self.write(user.to_json())
+#            projects = Project.objects.filter(
+#                          Q(admin__in=user)|Q(members__in=user)
+#                          ).exclude('start_date', 'end_date', 'sprints', )
+            response['organization'] = [org.name for org in user.belongs_to]
+            response['user'] = user.to_json()
+            self.write(response)
         except User.DoesNotExist:
             self.send_error(404)
 
@@ -64,3 +69,5 @@ class UserHandler(BaseHandler):
 
     def delete(self, *args, **kwargs):
         pass
+
+
