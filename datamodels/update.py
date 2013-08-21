@@ -6,7 +6,7 @@ import re
 
 from mongoengine.base import ValidationError
 from mongoengine import signals
-from datetime import datetime, timedelta
+from datetime import datetime
 #from utils.dumpers import json_dumper
 
 MENTION_REGEX = r'@[A-Za-z0-9_.-]+'
@@ -31,5 +31,7 @@ class Update(me.Document):
         hashtags = re.findall(HASHTAG_REGEX, self.text)
         if len(hashtags) > 0:
             self.hashtags = [hashtag[1:] for hashtag in hashtags]
+            self.project.hashtags.append(self.hashtags)
+            self.project.update(set__hashtags=set(self.project.hash_tag))
 
         super(Update, self).save(*args, **kwargs)
