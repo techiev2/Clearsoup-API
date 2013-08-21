@@ -24,8 +24,10 @@ class Project(me.Document):
     start_date = me.DateTimeField(default=datetime.utcnow())
     end_date = me.DateTimeField(default=datetime.utcnow())
     duration = me.IntField() #  sprint duration
+    
     updates = me.ListField()
-
+    hashtags = me.ListField()
+    
     # following has to be updated at time of saving object
     sequence = me.IntField()
     sprints = me.ListField()
@@ -182,19 +184,6 @@ class Project(me.Document):
                 raise ValidationError(error.message)
         return project
 
-    def save(self, *args, **kwargs):
-        '''
-            call save only in case of project PUT.
-            for any modification call project.update.
-        '''
-        super(Project, self).save(*args, **kwargs)
-        self.calculate_sprints()
-        self.reload()
-
-    def update(self, *args, **kwargs):
-        super(Project, self).update(*args, **kwargs)
-        self.reload()
-
     def get_sprint_object(self, sequence):
         try:
             sprint = Sprint.objects.get(sequence=sequence,
@@ -209,6 +198,57 @@ class Project(me.Document):
         from datamodels.story import Story
         return Story.objects.filter(project=project, is_active=True
                                     ).order_by('created_at')
+
+    def get_last_sprint(self):
+        sprints = Sprint.objects.filter(project=self).order_by('created_at')
+        if sprints:
+            sprint = list(sprints)[-1]
+        else:
+            sprint = None
+        return sprint
+    
+    def add_sprint(self, user):
+        last_sprint = self.get_last_sprint()
+        duration = self.duration
+        if not last_sprint:
+            start_date = self.start_date
+            end_date = self.start_date + timedelta(days=duration)
+            sequence = 0 
+        else:
+            if last_sprint.sequence != 0:
+                start_date = last_sprint.end_date + timedelta(days=1)
+                end_date = start_date + timedelta(days=duration)
+                sequence = last_sprint.sequence + 1
+            else:
+                start_date = self.start_date
+                end_date = start_date + timedelta(days=duration)
+                sequence = last_sprint.sequence + 1
+        try:
+            sprint = Sprint(start_date=start_date,
+                            end_date=end_date,
+                            sequence=sequence,
+                            project=self,
+                            created_by=user,
+                            updated_by=user)
+            sprint.save()
+            self.sprints.append('Sprint ' + str(sprint.sequence))
+            self.update(set__sprints=self.sprints)
+            return sprint
+        except Exception, error:
+            raise ValidationError(error)
+
+    def save(self, *args, **kwargs):
+        '''
+            call save only in case of project PUT.
+            for any modification call project.update.
+        '''
+        super(Project, self).save(*args, **kwargs)
+        self.calculate_sprints()
+        self.reload()
+
+    def update(self, *args, **kwargs):
+        super(Project, self).update(*args, **kwargs)
+        self.reload()
 
 
 class Sprint(me.Document):
@@ -239,6 +279,11 @@ class Sprint(me.Document):
     def update(self, *args, **kwargs):
         super(Sprint, self).update(*args, **kwargs)
         self.reload()
+
+    def get_stories(self):
+        # import is done here in order to resolve cyclic import
+        from datamodels.story import Story
+        return Story.objects.filter(sprint=self).order_by('created_at')
 
     def to_json(self, fields=None, exclude=None):
         return json_dumper(self, fields, exclude)
