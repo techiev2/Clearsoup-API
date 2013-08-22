@@ -7,7 +7,7 @@ from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
 
 # from tornadomail.message import EmailMessage, EmailMultiAlternatives
-# from tornadomail.backends.smtp import EmailBackend
+from tornadomail.backends.smtp import EmailBackend
 
 
 class ClearSoupApp(Application, object):
@@ -16,14 +16,14 @@ class ClearSoupApp(Application, object):
     def __init__(self, *args, **kwargs):
         super(ClearSoupApp, self).__init__(*args, **kwargs)
 
-    # @property
-    # def mail_connection(self):
-    #     return EmailBackend(
-    #         'smtp.gmail.com', 587,
-    #         'clearsoup.imaginea@gmail.com',
-    #         'clearsoup_imaginea',
-    #         True
-    #     )
+    @property
+    def mail_connection(self):
+        return EmailBackend(
+            'smtp.gmail.com', 587,
+            'clearsoup.imaginea@gmail.com',
+            'clearsoup_imaginea',
+            True
+        )
 
 # Use this lambda to generate absolute path for template/static.
 GEN_PATH = lambda path: os.path.join(os.getcwd(), path)
