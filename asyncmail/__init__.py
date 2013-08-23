@@ -27,7 +27,7 @@ class AsycnEmail(ClearSoupApp):
         Generate subject and message body when a url is being shared
         '''
         self._subject = 'Welcome to Clearsoup'
-        self._message = '\n'
+        self._message = 'Mr. ' + user.username + '\n'
         self._message = self._message.join(['', 'Thanks\n Team Clearsoup'])
 
     def generate_new_account_content(self):
