@@ -7,6 +7,7 @@ from mongoengine.queryset import Q
 from requires.base import BaseHandler, authenticated
 from datamodels.session import SessionManager
 from datamodels.user import User
+from asyncmail import AsycnEmail
 from datamodels.organization import Organization
 from datamodels.project import Project
 from utils.dumpers import json_dumper
@@ -23,6 +24,7 @@ class UserHandler(BaseHandler):
         return ast.literal_eval(urllib.unquote(oauth_data))
 
     def put(self, *args, **kwargs):
+        print 27
         """
         Register a new user
         """
@@ -39,6 +41,9 @@ class UserHandler(BaseHandler):
         try:
             user.save(validate=True, clean=True)
             user.update_profile(google_oauth)
+#            async_email = AsycnEmail(self.request)
+#            async_email.generate_publish_content(user=user)
+#            async_email.send_email(email=user.email)
         except ValidationError, error:
             raise HTTPError(403, **{'reason': self.error_message(error)})
         
