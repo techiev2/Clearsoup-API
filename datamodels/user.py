@@ -55,6 +55,9 @@ class User(me.Document):
             self.belongs_to.append(organization)
             self.update(set__belongs_to=self.belongs_to)
 
+    def get_user_profile(self):
+        return UserProfile.objects.filter(user=self)
+
     def save(self, *args, **kwargs):
         super(User, self).save(*args, **kwargs)
         self.reload()
