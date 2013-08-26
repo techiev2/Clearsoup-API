@@ -49,11 +49,12 @@ class Task(me.Document):
     are avoiding it and instead instantiating a state property which
     holds the state machine, its properties and methods
     """
-    # def __init__(self, *args, **kwargs):
-    #     self._state = Fysom(states['default'])
+    
+    def __init__(self, *args, **kwargs):
+        self._state = Fysom(states['default'])
 
     task_type = me.StringField(choices=TASK_TYPES, required=True),
-    seq_id = me.SequenceField(),
+    sequence = me.SequenceField(),
     title = me.StringField(max_length=128),
     description = me.StringField(),
     assigned_to = me.ReferenceField('User'), #Change to User
@@ -129,7 +130,7 @@ class EntityFactory:
 class WorkflowDispatcher:
     """
     This class handles all the action attributes of a state transition
-    It invokes the entitiy factory to get the required entity and then performs
+    It invokes the entity factory to get the required entity and then performs
     the required action on it
     """
     pass

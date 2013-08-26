@@ -1,26 +1,25 @@
 '''
-Created on 06-Aug-2013
+Created on 23-Aug-2013
 
 @author: someshs
 '''
 import json
 from tornado.web import HTTPError
-from mongoengine import ValidationError
+from mongoengine.errors import ValidationError
 
 from requires.base import BaseHandler, authenticated, validate_path_arg
 from datamodels.project import Project
-from datamodels.permission import ProjectPermission
-from utils.app import millisecondToDatetime
+from datamodels.task import Task
 from utils.dumpers import json_dumper
 
 
-class ProjectHandler(BaseHandler):
+class TaskHandler(BaseHandler):
     
     SUPPORTED_METHODS = ('GET', 'POST', 'PUT', 'DELETE')
     REQUIRED_FIELDS   = {
-        'POST': ('projectId',),
-        'PUT': ('title','start_date', 'end_date', 'duration'),
-        'DELETE' : ('projectId',),
+        'POST': ('projectId','taskId'),
+        'PUT': ('projectId', 'title','storyId', 'description'),
+        'DELETE' : ('projectId','taskId'),
         }
     data = {}
     
@@ -31,62 +30,42 @@ class ProjectHandler(BaseHandler):
             
             Besides above, it also cleans the date-time values and duration
         '''
-        [self.data.pop(key) for key in self.data.keys()
-         if key not in Project._fields.keys()]
-        for k in ['start_date', 'end_date']:
-            self.data[k] = millisecondToDatetime(self.data[k])
-        self.data['duration'] = int(self.data['duration'])
         if self.request.method == 'PUT':
             self.data['created_by'] = self.current_user
         self.data['updated_by'] = self.current_user
 
     @authenticated
     def get(self,*args, **kwargs):
-        sequence = self.get_argument('projectId', None)
+        project_id = self.get_argument('projectId', None)
         response = None
-        if sequence:
+        if project_id:
             try:
-                project = Project.get_project_object(sequence)
+                project = Project.get_project_object(project_id)
                 response = project.to_json()
             except ValidationError, error:
                 raise HTTPError(404, **{'reason': self.error_message(error)})
-        else:
-            # Check if we are returning a list of projects for
-            # the logged in user
-            #response = json_dumper(Project.objects(active=True))
-            projects = [p for p in Project.objects.all() if self.current_user in
-                        p.members]
-            response = json_dumper(projects)
         self.finish(json.dumps(response))
 
     @authenticated
     def post(self, *args, **kwargs):
-        """TBD"""
-        sequence = self.get_argument('projectId', None)
+        project_id = self.get_argument('projectId', None)
         response = None
         try:
-            project = Project.get_project_object(sequence)
+            project = Project.get_project_object(project_id)
             response = project.to_json()
             self.write(response)
         except ValidationError, error:
             raise HTTPError(404, **{'reason': self.error_message(error)})
 
-    def set_user_permission(self, project):
-        p = ProjectPermission(project=project,
-                          user=self.current_user,
-                          map=2047)
-        p.save()
-
     @authenticated
     def put(self, *args, **kwargs):
         self.clean_request()
-        project = Project(**self.data)
+        task = Task(**self.data)
         try:
-            project.save(validate=True, clean=True)
-            self.set_user_permission(project)
+            task.save(validate=True, clean=True)
         except ValidationError, error:
             raise HTTPError(500, **{'reason':self.error_message(error)})
-        self.write(project.to_json())
+        self.write(task.to_json())
 
     @authenticated
     def delete(self, *args, **kwargs):
@@ -97,4 +76,3 @@ class ProjectHandler(BaseHandler):
             self.write(project.to_json())
         except ValidationError, error:
             raise HTTPError(404, **{'reason': self.error_message(error)})
-
