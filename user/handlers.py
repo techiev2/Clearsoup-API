@@ -24,7 +24,6 @@ class UserHandler(BaseHandler):
         return ast.literal_eval(urllib.unquote(oauth_data))
 
     def put(self, *args, **kwargs):
-        print 27
         """
         Register a new user
         """
