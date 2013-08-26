@@ -7,7 +7,7 @@ from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
 
 # from tornadomail.message import EmailMessage, EmailMultiAlternatives
-# from tornadomail.backends.smtp import EmailBackend
+from tornadomail.backends.smtp import EmailBackend
 
 
 class ClearSoupApp(Application, object):
@@ -16,21 +16,21 @@ class ClearSoupApp(Application, object):
     def __init__(self, *args, **kwargs):
         super(ClearSoupApp, self).__init__(*args, **kwargs)
 
-    # @property
-    # def mail_connection(self):
-    #     return EmailBackend(
-    #         'smtp.gmail.com', 587,
-    #         'clearsoup.imaginea@gmail.com',
-    #         'clearsoup_imaginea',
-    #         True
-    #     )
+    @property
+    def mail_connection(self):
+        return EmailBackend(
+            'smtp.gmail.com', 587,
+            'clearsoup.imaginea@gmail.com',
+            'clearsoup_imaginea',
+            True
+        )
 
 # Use this lambda to generate absolute path for template/static.
 GEN_PATH = lambda path: os.path.join(os.getcwd(), path)
 
 SETTINGS = {
     'APPS': ['project', 'story','auth', 'core', 'user', 'team', 'permission',
-             'sprint','organization'],
+             'sprint', 'update', 'organization'],
 	# Security
     'cookie': 'token',  # Specify the cookie variable name
     'login_url': '/api/authenticate/',  # Login path for the application
@@ -38,7 +38,7 @@ SETTINGS = {
 	# Templating
     'debug': True,  # Retain debug True for development.
 	# App options
-    'mongo_port': 8888,
+    'mongo_port': 8800,
     'mongo_db': 'clearsoup-db',
     'api_root': 'http://localhost:9000/api/',
     'web_root': 'http://localhost:8000'
