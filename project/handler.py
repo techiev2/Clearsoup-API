@@ -5,7 +5,7 @@ Created on 06-Aug-2013
 '''
 import json
 from tornado.web import HTTPError
-from mongoengine.errors import ValidationError
+from mongoengine import ValidationError
 
 from requires.base import BaseHandler, authenticated, validate_path_arg
 from datamodels.project import Project
