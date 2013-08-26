@@ -5,7 +5,6 @@ Created on 06-Aug-2013
 '''
 import json
 from tornado.web import HTTPError
-from mongoengine.errors import ValidationError
 from mongoengine import ValidationError
 
 from requires.base import BaseHandler, authenticated, validate_path_arg
@@ -44,20 +43,27 @@ class ProjectHandler(BaseHandler):
     @authenticated
     def get(self,*args, **kwargs):
         sequence = self.get_argument('projectId', None)
-        response = None
+        response = {}
+        response['project'] = []
         if sequence:
             try:
                 project = Project.get_project_object(sequence)
-                response = project.to_json()
+                response['project'].append(project.to_json())
+                response['project'][0].update(
+                       {'current_sprint' : project.get_current_sprint().to_json()})
             except ValidationError, error:
                 raise HTTPError(404, **{'reason': self.error_message(error)})
         else:
             # Check if we are returning a list of projects for
             # the logged in user
             #response = json_dumper(Project.objects(active=True))
-            projects = [p for p in Project.objects.all() if self.current_user in
-                        p.members]
-            response = json_dumper(projects)
+            for p in Project.objects.all():
+                if self.current_user in p.members:
+                    index = len(response['project'])
+                    response['project'].append(p.to_json())
+                    response['project'][index].update(
+                                   {'current_sprint': p.get_current_sprint().to_json()})
+            print response
         self.finish(json.dumps(response))
 
     @authenticated
