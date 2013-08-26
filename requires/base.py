@@ -23,6 +23,7 @@ class BaseHandler(tornado.web.RequestHandler):
 
     def initialize(self):
         self.data = {}
+        self.set_header("Content-Type", CONTENT_TYPES['json'])
 
     def prepare(self):
         """
@@ -94,7 +95,6 @@ class BaseHandler(tornado.web.RequestHandler):
             if stack and 'reason' in stack[1]:
                 message = stack[1].reason
 
-        self.set_header("Content-Type", "application/json")
         self.set_status(status_code)
         self.finish({
             "status": status_code,
