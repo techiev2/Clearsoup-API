@@ -9,7 +9,9 @@ from mongoengine.errors import ValidationError
 
 from requires.base import BaseHandler, authenticated, validate_path_arg
 from datamodels.project import Project
+from datamodels.story import Story
 from datamodels.task import Task
+from utils.app import millisecondToDatetime
 from utils.dumpers import json_dumper
 
 
@@ -18,48 +20,85 @@ class TaskHandler(BaseHandler):
     SUPPORTED_METHODS = ('GET', 'POST', 'PUT', 'DELETE')
     REQUIRED_FIELDS   = {
         'POST': ('projectId','taskId'),
-        'PUT': ('projectId', 'title','storyId', 'description'),
+        'PUT': ('projectId', 'title','storyId'),
         'DELETE' : ('projectId','taskId'),
         }
     data = {}
     
     def clean_request(self):
-        '''
-            function to remove additional data key send in request.
-            e.g token
-            
-            Besides above, it also cleans the date-time values and duration
-        '''
         if self.request.method == 'PUT':
+            for k in ['estimated_completion_date',]:
+                self.data[k] = millisecondToDatetime(self.data[k])
+            self.data['project'] = self.get_project_object(
+                                                   self.data['projectId'])
+            self.data['story'] = self.get_story_object(
+                                               project=self.data['project'],
+                                               sequence=self.data['storyId'])
+            self.data['parent_task'] = self.get_task_object(
+                                        project=self.data['project'],
+                                        sequence=self.data['parentTaskId'])
+            [self.data.pop(key) for key in self.data.keys()
+                if key not in Task._fields.keys()]
             self.data['created_by'] = self.current_user
         self.data['updated_by'] = self.current_user
+
+    def get_project_object(self, sequence):
+        try:
+            project = Project.get_project_object(sequence=sequence)
+        except ValidationError, error:
+            raise HTTPError(404, **{'reason': self.error_message(error)})
+        return project
+
+    def get_story_object(self, project=None, sequence=None):
+        try:
+            story = Story.objects.get(sequence=sequence, project=project)
+        except ValidationError, error:
+            raise HTTPError(404, **{'reason': self.error_message(error)})
+        return story
+    
+    def get_task_object(self, project=None, sequence=None):
+        task = None
+        if sequence:
+            try:
+                task = Task.objects.get(project=project,sequence=sequence)
+            except Task.DoesNotExist:
+                pass
+        return task
+    
 
     @authenticated
     def get(self,*args, **kwargs):
         project_id = self.get_argument('projectId', None)
-        response = None
+        task_id = self.get_argument('taskId',None)
+        response = {}
         if project_id:
-            try:
-                project = Project.get_project_object(project_id)
-                response = project.to_json()
-            except ValidationError, error:
-                raise HTTPError(404, **{'reason': self.error_message(error)})
+            project = self.get_project_object(project_id)
+            if task_id:
+                task = self.get_task_object(project, task_id)
+                if not task:
+                    raise HTTPError(404, **{'reason': 'Task matching query not found'})
+                else:
+                    response['task'] = task.to_json()
+            else:
+                response = json_dumper(Task.objects.filter(project=project))
         self.finish(json.dumps(response))
 
     @authenticated
     def post(self, *args, **kwargs):
         project_id = self.get_argument('projectId', None)
-        response = None
-        try:
-            project = Project.get_project_object(project_id)
-            response = project.to_json()
-            self.write(response)
-        except ValidationError, error:
-            raise HTTPError(404, **{'reason': self.error_message(error)})
+        task_id = self.get_argument('taskId',None)
+        response = {}
+        if project_id:
+            project = self.get_project_object(project_id)
+            if task_id:
+                pass
+                # update a task
+        self.finish(json.dumps(response))
 
     @authenticated
     def put(self, *args, **kwargs):
         self.clean_request()
+        print self.data
         task = Task(**self.data)
         try:
             task.save(validate=True, clean=True)
@@ -69,10 +108,16 @@ class TaskHandler(BaseHandler):
 
     @authenticated
     def delete(self, *args, **kwargs):
-        sequence = self.get_argument('projectId', None)
-        try:
-            project = Project.get_project_object(sequence)
-            project.update(set__active=False)
-            self.write(project.to_json())
-        except ValidationError, error:
-            raise HTTPError(404, **{'reason': self.error_message(error)})
+        project_id = self.get_argument('projectId', None)
+        task_id = self.get_argument('taskId',None)
+        response = {}
+        if project_id:
+            project = self.get_project_object(project_id)
+            if task_id:
+                task = self.get_task_object(project, task_id)
+                if not task:
+                    raise HTTPError(404, **{'reason': 'Task matching query not found'})
+                else:
+                    task.update(set__is_active=False)
+                    response['task'] = task.to_json()
+        self.finish(response)
