@@ -9,6 +9,8 @@ from datetime import datetime
 from fysom import Fysom
 
 import mongoengine as me
+from mongoengine import signals
+from mongoengine import ValidationError
 
 from utils.dumpers import json_dumper
 
@@ -50,21 +52,20 @@ class Task(me.Document):
     holds the state machine, its properties and methods
     """
     
-    def __init__(self, *args, **kwargs):
-        self._state = Fysom(states['default'])
-
-    task_type = me.StringField(choices=TASK_TYPES, required=True),
-    sequence = me.SequenceField(),
-    title = me.StringField(max_length=128),
-    description = me.StringField(),
-    assigned_to = me.ReferenceField('User'), #Change to User
-    estimated_completion = me.DateTimeField(required=False),
-    actual_completion = me.DateTimeField(required=False)
-    #current_action: basestring, #Change to TaskAction
+    task_type = me.StringField(choices=TASK_TYPES, required=True)
+    sequence = me.IntField()
+    title = me.StringField(max_length=128, unique_with=['story', 'project'])
+    description = me.StringField(max_length=500)
+    assigned_to = me.ReferenceField('User')
+    estimated_completion_date = me.DateTimeField(required=False)
+    actual_completion_date = me.DateTimeField(required=False)
+    current_action = me.StringField()
     
     # Either parent task or child tasks
-    #'parent_task': Task,
-    #'child_tasks': [Task]
+    parent_task = me.ReferenceField('self', required=False)
+    child_tasks = [me.ReferenceField('self', required=False)]
+    project = me.ReferenceField('Project', required=True, dbref=True)
+    story = me.ReferenceField('Story', required=True, dbref=True)
     
     created_at = me.DateTimeField(default=datetime.utcnow)
     updated_at = me.DateTimeField(default=datetime.utcnow)
@@ -72,66 +73,134 @@ class Task(me.Document):
     updated_by = me.ReferenceField('User', required=False)
     is_active = me.BooleanField(default=True)
 
-    def validate(self, *args, **kwargs):
-        # try:
-        if hasattr(self, "_state_machine"):
-            delattr(self, "_state_machine")
-        super(Task, self).validate()
-        # except Exception, e:
-        #     if e.message.find("_dynamic_fields") != -1 or\
-        #        e.message.find("_data") != -1:
-        #         print '_dynamic_fields error passed'
-        #     else:
-        #         raise e
 
-    @property
-    def state_machine(self):
-        if not hasattr(self, "_state_machine"):
-            self._state_machine = Fysom(states['default'])
-        return self._state_machine
+    def __init__(self, *args, **kwargs):
+        super(Task, self).__init__( *args, **kwargs)
 
-    def onchangestate(self, e):
-        print 'Changing task from ' + e.src + ' to ' + e.dst
-        # Change current action to next action
-        self.current_action += 1
+#        self._state = Fysom(states['default'])
 
-    def next(self):
-        getattr(self, self.actions[self.current_action])()
 
-    def to_json(self, fields, exclude):
+
+    def clean(self):
+        print 82
+        print self.title
+        tasks = Task.objects.filter(title=self.title,project=self.project,
+                                    story=self.story).count()
+        if tasks > 0:
+            raise ValidationError('Duplicate Task')
+
+    @classmethod
+    def last_task_id(cls, project=None):
+        sequence = None
+        tasks = Task.objects.filter(project=project)
+        if tasks:
+            sequence = list(Task.objects.filter(project=project
+                                    ).order_by('sequence'))[-1].sequence
+        return sequence
+
+    @classmethod
+    def pre_save(cls, sender, document, **kwargs):
+        if document.created_by and \
+            document.created_by not in document.project.members:
+            raise ValidationError('You do not belong to this project')
+        last_sequence = cls.last_task_id(document.project)
+        if last_sequence:
+            document.sequence = last_sequence + 1
+        else:
+            document.sequence = 1
+        if len(document.title) > 128:
+            raise ValidationError('Title exceeds 64 characters')
+        if len(document.description) > 500:
+            raise ValidationError('Description exceeds 500 characters')
+
+    @classmethod
+    def post_save(cls, sender, document, **kwargs):
+        '''
+            1. update sequence value
+        '''
+        if document.sequence:
+            document.update(set__sequence=document.sequence,
+                            set__current_action='New')
+
+
+    def save(self, *args, **kwargs):
+        '''
+            call save only in case of project PUT.
+            for any modification call project.update.
+        '''
+        super(Task, self).save(*args, **kwargs)
+        self.reload()
+
+    def update(self, *args, **kwargs):
+        super(Task, self).update(*args, **kwargs)
+        self.reload()
+
+    def to_json(self, fields=None, exclude=None):
         return json_dumper(self, fields, exclude)
 
 
-class EntityFactory:
-    """
-    Factory to create and return entities of specified type
-    """
-
-    ALLOWED_ENTITIES = ['Task','Story']
-
-    @staticmethod
-    def create(entity_type, **kwargs):
-        # Get reference to the current module (basemodel)
-        module = sys.modules[__name__]
-        # If we are allowed to create the entity
-        if entity_type in EntityFactory.ALLOWED_ENTITIES and hasattr(module, entity_type):
-            try:
-                # Try and create a new instance of the entity
-                return getattr(module, entity_type)(**kwargs)
-            except NameError:
-                return None
-        return None
-
-    @staticmethod
-    def get(entity_type, id):
-        pass
+signals.pre_save.connect(Task.pre_save, sender=Task)
+signals.post_save.connect(Task.post_save, sender=Task)
 
 
-class WorkflowDispatcher:
-    """
-    This class handles all the action attributes of a state transition
-    It invokes the entity factory to get the required entity and then performs
-    the required action on it
-    """
-    pass
+#    def validate(self, *args, **kwargs):
+#        try:
+#            if hasattr(self, "_state_machine"):
+#                delattr(self, "_state_machine")
+#            super(Task, self).validate()
+#        except Exception, e:
+#            if e.message.find("_dynamic_fields") != -1 or\
+#                e.message.find("_data") != -1:
+#                print '_dynamic_fields error passed'
+#            else:
+#                raise e
+
+#    @property
+#    def state_machine(self):
+#        if not hasattr(self, "_state_machine"):
+#            self._state_machine = Fysom(states['default'])
+#        return self._state_machine
+#
+#    def onchangestate(self, e):
+#        print 'Changing task from ' + e.src + ' to ' + e.dst
+#        # Change current action to next action
+#        self.current_action += 1
+#
+#    def next(self):
+#        getattr(self, self.actions[self.current_action])()
+
+
+#
+#class EntityFactory:
+#    """
+#    Factory to create and return entities of specified type
+#    """
+#
+#    ALLOWED_ENTITIES = ['Task','Story']
+#
+#    @staticmethod
+#    def create(entity_type, **kwargs):
+#        # Get reference to the current module (basemodel)
+#        module = sys.modules[__name__]
+#        # If we are allowed to create the entity
+#        if entity_type in EntityFactory.ALLOWED_ENTITIES and hasattr(module, entity_type):
+#            try:
+#                # Try and create a new instance of the entity
+#                return getattr(module, entity_type)(**kwargs)
+#            except NameError:
+#                return None
+#        return None
+#
+#    @staticmethod
+#    def get(entity_type, id):
+#        pass
+#
+#
+#class WorkflowDispatcher:
+#    """
+#    This class handles all the action attributes of a state transition
+#    It invokes the entity factory to get the required entity and then performs
+#    the required action on it
+#    """
+#    pass
 
