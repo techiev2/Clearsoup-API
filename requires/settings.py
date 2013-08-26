@@ -38,7 +38,7 @@ SETTINGS = {
 	# Templating
     'debug': True,  # Retain debug True for development.
 	# App options
-    'mongo_port': 8888,
+    'mongo_port': 8800,
     'mongo_db': 'clearsoup-db',
     'api_root': 'http://localhost:9000/api/',
     'web_root': 'http://localhost:8000'
