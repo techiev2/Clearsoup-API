@@ -26,15 +26,13 @@ class UpdateHandler(BaseHandler):
     """
     SUPPORTED_METHODS = ('GET', 'PUT', 'DELETE')
     REQUIRED_FIELDS   = {
-        # 'GET': ('project',),
         'PUT': ('text',),
         'DELETE' : ('id',)
         }
 
     def get_project(self, project_name):
         try:
-            project = Project.objects.get(title__exact=project_name)
-            # project.update(set__active=False)
+            project = Project.objects.get(title__iexact=project_name)
         except Project.DoesNotExist:
             project = None
         return project
@@ -43,7 +41,6 @@ class UpdateHandler(BaseHandler):
     @validate_path_arg
     def put(self, project, *args, **kwargs):
         # Get the project object
-        # project_id = self.get_argument('project_id', None)
         project = self.get_project(project)
         if not project:
             self.send_error(404)
