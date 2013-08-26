@@ -41,7 +41,7 @@ class ProjectHandler(BaseHandler):
         self.data['updated_by'] = self.current_user
 
     @authenticated
-    def get(self,*args, **kwargs):
+    def get(self, *args, **kwargs):
         sequence = self.get_argument('projectId', None)
         response = {}
         response['project'] = []
@@ -63,7 +63,8 @@ class ProjectHandler(BaseHandler):
                     response['project'].append(p.to_json())
                     response['project'][index].update(
                                    {'current_sprint': p.get_current_sprint().to_json()})
-            print response
+            # projects = [p for p in Project.objects.all() if self.current_user in
+            #             p.members]
         self.finish(json.dumps(response))
 
     @authenticated

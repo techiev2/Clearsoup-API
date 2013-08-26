@@ -59,9 +59,6 @@ class UserHandler(BaseHandler):
         try:
             response = {}
             user = User.objects.get(username=username)
-#            projects = Project.objects.filter(
-#                          Q(admin__in=user)|Q(members__in=user)
-#                          ).exclude('start_date', 'end_date', 'sprints', )
             response['organization'] = [org.name for org in user.belongs_to]
             response['user'] = user.to_json()
             self.write(response)
