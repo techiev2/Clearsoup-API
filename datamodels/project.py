@@ -184,6 +184,15 @@ class Project(me.Document):
                 raise ValidationError(error.message)
         return project
 
+    @classmethod
+    def get_user_projects(cls, user=None):
+        projects = Project.objects.filter(
+                       (me.Q(admin=user) | me.Q(members__in=user))
+                       & me.Q(is_active=True)
+                   ).exclude('start_date', 'end_date', 'sprints')
+        return projects
+
+
     def get_sprint_object(self, sequence):
         try:
             sprint = Sprint.objects.get(sequence=sequence,

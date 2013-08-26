@@ -42,7 +42,7 @@ class ProjectHandler(BaseHandler):
         self.data['updated_by'] = self.current_user
 
     @authenticated
-    def get(self,*args, **kwargs):
+    def get(self, *args, **kwargs):
         sequence = self.get_argument('projectId', None)
         response = None
         if sequence:
@@ -55,9 +55,10 @@ class ProjectHandler(BaseHandler):
             # Check if we are returning a list of projects for
             # the logged in user
             #response = json_dumper(Project.objects(active=True))
-            projects = [p for p in Project.objects.all() if self.current_user in
-                        p.members]
-            response = json_dumper(projects)
+            # projects = [p for p in Project.objects.all() if self.current_user in
+            #             p.members]
+            projects = Project.get_user_projects(self.current_user)
+            response = json_dumper(projects, fields=('title', 'sequence',))
         self.finish(json.dumps(response))
 
     @authenticated
