@@ -138,6 +138,11 @@ class Project(me.Document):
         project_duration = (self.end_date - self.start_date).days
         sprints = project_duration / self.duration
         
+        print '*' * 20
+        print project_duration
+        print self.end_date
+        print self.start_date
+        print '*' * 20
         # in case duration is of form 7K + 1, one sprint has to be added
         difference = project_duration - (self.duration * sprints)
         
