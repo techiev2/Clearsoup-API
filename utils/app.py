@@ -28,4 +28,4 @@ def serialize(data, pattern=None, keysplit=None):
 
 
 def millisecondToDatetime(millisecond):
-    return datetime.utcfromtimestamp(int(millisecond) // 1000)
+    return datetime.utcfromtimestamp(int(millisecond))
