@@ -1,12 +1,8 @@
 import sys
 sys.dont_write_bytecode = True
 
-import os
-import pymongo
 import mongoengine as me
-
 from mongoengine.base import ValidationError
-
 
 from organization import Organization
 from userprofile import UserProfile
@@ -14,12 +10,16 @@ from utils.dumpers import  json_dumper
 
 sys.dont_write_bytecode = True
 
+USERNAME_REGX = '^[a-zA-Z0-9_]*$'
+EMAIL_REGX = '^[a-zA-Z0-9_.-@]*$'
 
 class User(me.Document):
     username = me.StringField(max_length=32,
-                              unique=True, required=True)
+                              unique=True, required=True,
+                              regex=USERNAME_REGX)
     password = me.StringField(required=True)
-    email = me.EmailField(required=True, unique=True)
+    email = me.EmailField(required=True, unique=True,
+                          regex=EMAIL_REGX)
     # Profile
     profile = me.ReferenceField('UserProfile', dbref=True)
     # Org
@@ -69,3 +69,4 @@ class User(me.Document):
 
 if __name__ == '__main__':
     pass
+
