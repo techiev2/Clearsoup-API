@@ -11,7 +11,7 @@ from datetime import datetime
 
 MENTION_REGEX = r'@[A-Za-z0-9_.-]+'
 HASHTAG_REGEX = r'#[A-Za-z0-9_.-]+'
-UPDATE_REGEX = '^[a-zA-Z0-9-_.\?\/]*$'
+UPDATE_REGEX = '^[a-zA-Z0-9-_,;.\?\/\s]*$'
 
 class Update(me.Document):
     # Meta

@@ -17,7 +17,7 @@ from datamodels.project import Project, Sprint
 from utils.dumpers import json_dumper
 
 TITLE_REGEX = '^[a-zA-Z0-9-_\.]*$'
-DESCRIPTION_REGEX = '^[a-zA-Z0-9-_.\?\/]*$'
+DESCRIPTION_REGEX = '^[a-zA-Z0-9-_,;.\?\/\s]*$'
 PRIORITIES = ["L", "M", "H", "X"]
 
 

@@ -11,7 +11,7 @@ from mongoengine.base import ValidationError
 from mongoengine import signals
 import mongoengine as me
 from utils.dumpers import json_dumper
-NAME_REGX = '^[a-zA-Z0-9_]*$'
+NAME_REGX = '^[a-zA-Z0-9_\s]*$'
 
 class Organization(me.Document):
     name = me.StringField(required=True, max_length=30, unique=True,

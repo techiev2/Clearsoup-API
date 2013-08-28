@@ -13,8 +13,8 @@ from mongoengine.base import ValidationError
 from mongoengine import signals
 
 from utils.dumpers import json_dumper
-TITLE_REGEX = '^[a-zA-Z0-9_]*$'
-DESCRIPTION_REGEX = '^[a-zA-Z0-9-_.\?\/]*$'
+TITLE_REGEX = '^[a-zA-Z0-9_\s]*$'
+DESCRIPTION_REGEX = '^[a-zA-Z0-9-_,;.\?\/\s]*$'
 
 class Project(me.Document):
     organization = me.ReferenceField('Organization',required=False,

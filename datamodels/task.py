@@ -18,8 +18,8 @@ sys.dont_write_bytecode = True
 
 
 TASK_TYPES = ['Design', 'Development', 'Review', 'Testing', 'Documentation']
-TITLE_REGEX = '^[a-zA-Z0-9-_\.]*$'
-DESCRIPTION_REGEX = '^[a-zA-Z0-9-_\.\?\/]*$'
+TITLE_REGEX = '^[a-zA-Z0-9-_\.,]*$'
+DESCRIPTION_REGEX = '^[a-zA-Z0-9-_,;.\?\/\s]*$'
 states = {
     'default': {
         'initial': 'New',
