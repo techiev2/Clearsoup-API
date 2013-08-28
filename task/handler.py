@@ -20,7 +20,8 @@ class TaskHandler(BaseHandler):
     SUPPORTED_METHODS = ('GET', 'POST', 'PUT', 'DELETE')
     REQUIRED_FIELDS   = {
         'POST': ('projectId','taskId'),
-        'PUT': ('projectId', 'title','storyId'),
+        'PUT': ('projectId', 'title','storyId', 'estimated_completion_date', 
+                'parentTaskId'),
         'DELETE' : ('projectId','taskId'),
         }
     data = {}
@@ -98,7 +99,6 @@ class TaskHandler(BaseHandler):
     @authenticated
     def put(self, *args, **kwargs):
         self.clean_request()
-        print self.data
         task = Task(**self.data)
         try:
             task.save(validate=True, clean=True)
