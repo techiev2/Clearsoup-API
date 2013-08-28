@@ -18,7 +18,8 @@ sys.dont_write_bytecode = True
 
 
 TASK_TYPES = ['Design', 'Development', 'Review', 'Testing', 'Documentation']
-
+TITLE_REGEX = '^[a-zA-Z0-9-_\.]*$'
+DESCRIPTION_REGEX = '^[a-zA-Z0-9-_\.\?\/]*$'
 states = {
     'default': {
         'initial': 'New',
@@ -54,8 +55,10 @@ class Task(me.Document):
     
     task_type = me.StringField(choices=TASK_TYPES, required=True)
     sequence = me.IntField()
-    title = me.StringField(max_length=128, unique_with=['story', 'project'])
-    description = me.StringField(max_length=500)
+    title = me.StringField(max_length=128, unique_with=['story', 'project'],
+                           regex=TITLE_REGEX)
+    description = me.StringField(max_length=500,
+                                 regex=DESCRIPTION_REGEX)
     assigned_to = me.ReferenceField('User')
     estimated_completion_date = me.DateTimeField(required=False)
     actual_completion_date = me.DateTimeField(required=False)
@@ -82,8 +85,6 @@ class Task(me.Document):
 
 
     def clean(self):
-        print 82
-        print self.title
         tasks = Task.objects.filter(title=self.title,project=self.project,
                                     story=self.story).count()
         if tasks > 0:
@@ -108,9 +109,9 @@ class Task(me.Document):
             document.sequence = last_sequence + 1
         else:
             document.sequence = 1
-        if len(document.title) > 128:
+        if document.title and len(document.title) > 128:
             raise ValidationError('Title exceeds 64 characters')
-        if len(document.description) > 500:
+        if document.description and len(document.description) > 500:
             raise ValidationError('Description exceeds 500 characters')
 
     @classmethod

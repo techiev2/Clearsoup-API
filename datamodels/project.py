@@ -13,14 +13,16 @@ from mongoengine.base import ValidationError
 from mongoengine import signals
 
 from utils.dumpers import json_dumper
-
+TITLE_REGEX = '^[a-zA-Z0-9_]*$'
+DESCRIPTION_REGEX = '^[a-zA-Z0-9-_.\?\/]*$'
 
 class Project(me.Document):
     organization = me.ReferenceField('Organization',required=False,
                                      reverse_delete_rule=me.CASCADE, 
                                      default=None)
     # these four will come in request data for put
-    title = me.StringField(max_length=64, required=True, unique=True)
+    title = me.StringField(max_length=64, required=True, unique=True,
+                           regex=TITLE_REGEX)
     start_date = me.DateTimeField(default=datetime.utcnow())
     end_date = me.DateTimeField(default=datetime.utcnow())
     duration = me.IntField() #  sprint duration
@@ -34,7 +36,8 @@ class Project(me.Document):
     members = me.ListField()
     admin = me.ListField(me.ReferenceField('User'))
     is_active = me.BooleanField(default=True)
-    description = me.StringField(max_length=500)
+    description = me.StringField(max_length=500,
+                                 regex=DESCRIPTION_REGEX)
     
     # these have to be moved to base model
     created_by = me.ReferenceField('User', required=True, dbref=True)
@@ -135,6 +138,7 @@ class Project(me.Document):
     def calculate_sprints(self):
         if not self.duration:
             self.duration = 7
+            self.update(set__duration=self.duration)
         project_duration = (self.end_date - self.start_date).days
         sprints = project_duration / self.duration
         # in case duration is of form 7K + 1, one sprint has to be added

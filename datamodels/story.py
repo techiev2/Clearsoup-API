@@ -16,7 +16,8 @@ from mongoengine import signals
 from datamodels.project import Project, Sprint
 from utils.dumpers import json_dumper
 
-
+TITLE_REGEX = '^[a-zA-Z0-9-_\.]*$'
+DESCRIPTION_REGEX = '^[a-zA-Z0-9-_.\?\/]*$'
 PRIORITIES = ["L", "M", "H", "X"]
 
 
@@ -33,10 +34,12 @@ class Story(me.Document):
     
     title = me.StringField(required=True,
                              max_length=128,
-                             unique_with='project')
+                             unique_with='project',
+                             regex=TITLE_REGEX)
     priority = me.StringField(choices=PRIORITIES)
     description = me.StringField(max_length=500,
-                                required=False)
+                                required=False,
+                                regex=DESCRIPTION_REGEX)
     sequence = me.IntField(unique_with='project')
     status = me.StringField()
 
