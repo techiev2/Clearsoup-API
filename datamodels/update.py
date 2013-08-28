@@ -14,7 +14,7 @@ HASHTAG_REGEX = r'#[A-Za-z0-9_.-]+'
 
 class Update(me.Document):
     # Meta
-    created_by = me.ReferenceField('User', required=True)
+    created_by = me.ReferenceField('User', required=True, dbref=True)
     created_at = me.DateTimeField(default=datetime.utcnow())
     # Fields
     project = me.ReferenceField('Project', required=True)
