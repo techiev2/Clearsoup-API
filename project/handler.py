@@ -48,9 +48,12 @@ class ProjectHandler(BaseHandler):
         if sequence:
             try:
                 project = Project.get_project_object(sequence)
-                response['project'].append(project.to_json())
-                response['project'][0].update(
-                       {'current_sprint' : project.get_current_sprint().to_json()})
+                if self.current_user in project.members:
+                    response['project'].append(project.to_json())
+                    response['project'][0].update(
+                           {'current_sprint' : project.get_current_sprint().to_json()})
+                else:
+                    raise HTTPError(404, **{'reason': "Project Not found."})
             except ValidationError, error:
                 raise HTTPError(404, **{'reason': self.error_message(error)})
         else:
