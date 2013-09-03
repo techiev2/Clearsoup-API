@@ -53,7 +53,7 @@ class ProjectHandler(BaseHandler):
     @authenticated
     def get(self, *args, **kwargs):
         """
-        Get a project object by passing in:
+        Get a list of projects by passing in:
         1) projectId - the project sequence number (returns a single project)
         2) owner and project_name - Gets the project in either 
         the user or org context
@@ -61,56 +61,57 @@ class ProjectHandler(BaseHandler):
         """
         sequence = self.get_argument('projectId', None)
         owner = self.get_argument('owner', None)
-        project_name = self.get_argument('project_name', None)
-
+        project_name = self.get_argument('project_name', None)        
+        
         response = {}
-        response['project'] = []
+        # By Sequence number
         if sequence:
             try:
                 project = Project.get_project_object(sequence)
                 if self.current_user in project.members:
-                    response['project'].append(project.to_json())
-                    response['project'][0].update(
-                           {'current_sprint' : project.get_current_sprint().to_json()})
+                    response['project'] = project.to_json()
+                    response['project'].update({
+                        'current_sprint' : project.get_current_sprint().to_json()
+                    })
                 else:
                     raise HTTPError(404, **{'reason': "Project Not found."})
             except ValidationError, error:
                 raise HTTPError(404, **{'reason': self.error_message(error)})
         
+        # By permalink
         elif owner and project_name:
-            # Validate the owner object
-
-            user = User.objects.get(username__iexact=owner)
-            if not user:
-                raise HTTPError(404)
-
+            permalink = owner + '/' + project_name
             try:
                 project = Project.objects.get(
-                        Q(created_by=user) &
-                        Q(title__iexact=project_name) &
-                        (
-                            Q(members__in=self.current_user) |
-                            Q(admin=self.current_user)
+                            permalink__iexact=permalink,
+                            members=self.current_user
                         )
-                    )
-                if project:
-                    self.finish(project.to_json())
+                if not project:
+                    raise HTTPError(404)
+                
+                if not self.current_user in project.members:
+                    raise HTTPError(403)
             
+                response['project'] = project.to_json()
+                response['project'].update({
+                    'current_sprint' : project.get_current_sprint().to_json()
+                })
+
             except Project.DoesNotExist:
                 raise HTTPError(404)
 
+        # All projects for the current
         else:
             # Check if we are returning a list of projects for
             # the logged in user
-            #response = json_dumper(Project.objects(active=True))
-            for p in Project.objects.all():
-                if self.current_user in p.members:
-                    index = len(response['project'])
-                    response['project'].append(p.to_json())
-                    response['project'][index].update(
-                                   {'current_sprint': p.get_current_sprint().to_json()})
-            # projects = [p for p in Project.objects.all() if self.current_user in
-            #             p.members]
+            projects = Project.objects(members=self.current_user)
+            response['projects'] = []
+            for p in projects:                
+                response['projects'].append(p.to_json())
+                response['projects'][-1].update({
+                    'current_sprint': p.get_current_sprint().to_json()
+                })
+        
         self.finish(json.dumps(response))
 
     @authenticated

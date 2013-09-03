@@ -13,8 +13,13 @@ from mongoengine.base import ValidationError
 from mongoengine import signals
 
 from utils.dumpers import json_dumper
+from utils.app import slugify
+
 TITLE_REGEX = '^[a-zA-Z0-9_\s]*$'
 DESCRIPTION_REGEX = '^[a-zA-Z0-9-_,;.\?\/\s]*$'
+
+# srinath/Clearsoup-Web
+# Imaginea/Clearsoup-API
 
 class Project(me.Document):
     organization = me.ReferenceField('Organization',required=False,
@@ -23,6 +28,7 @@ class Project(me.Document):
     # these four will come in request data for put
     title = me.StringField(max_length=64, required=True, unique=True,
                            regex=TITLE_REGEX)
+    permalink = me.StringField()
     start_date = me.DateTimeField(default=datetime.utcnow())
     end_date = me.DateTimeField(default=datetime.utcnow())
     duration = me.IntField() #  sprint duration
@@ -105,9 +111,13 @@ class Project(me.Document):
             1. update sequence value
         '''
         if document.sequence:
+            owner = document.organization.name if document.organization else\
+                    document.created_by.username
+            permalink = slugify(owner) + '/' + slugify(document.title)
             document.update(set__sequence=document.sequence,
                             set__members=[document.created_by],
-                            set__admin=[document.created_by])
+                            set__admin=[document.created_by],
+                            set__permalink=permalink)
 
     def create_sprints(self):
         for (idx, sprint) in enumerate(self.sprints):
