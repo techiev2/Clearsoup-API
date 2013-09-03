@@ -24,7 +24,7 @@ class UserProfile(me.Document):
     first_name = me.StringField()
     last_name = me.StringField()
     google = me.DictField()
-
+    github = me.DictField()
     avatar = me.ImageField()
 
     created_at = me.DateTimeField(default=datetime.utcnow)
@@ -41,16 +41,29 @@ class UserProfile(me.Document):
 
     @classmethod
     def pre_save(cls, sender, document, **kwargs):
-        if UserProfile.objects.filter(
-                      google__email=document.google['email']).count() > 0:
-            raise ValidationError('This account is already registered.')
+        if document.google:
+            if UserProfile.objects.filter(
+                          google__email=document.google['email']).count() > 0:
+                raise ValidationError('This account is already registered.')
+        if document.github:
+            if UserProfile.objects.filter(
+                          github__email=document.github['email']).count() > 0:
+                raise ValidationError('This account is already registered.')
     
     @classmethod
     def post_save(cls, sender, document, **kwargs):
         if not document.first_name and not document.last_name:
-            document.update(set__first_name=document.google['first_name'],
-                            set__last_name=document.google['last_name'])
-    
+            if document.google:
+                first_name = document.google['first_name']
+                last_name = document.google['last_name']
+            if document.github:
+                try:
+                    first_name, last_name = document.github['name'].split(' ')
+                except ValueError:
+                    first_name, last_name = document.github['name'], ''
+            document.update(set__first_name=first_name,
+                            set__last_name=last_name)
+
     def save(self, *args, **kwargs):
         super(UserProfile, self).save(*args, **kwargs)
         self.reload()
