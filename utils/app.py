@@ -29,3 +29,7 @@ def serialize(data, pattern=None, keysplit=None):
 
 def millisecondToDatetime(millisecond):
     return datetime.utcfromtimestamp(int(millisecond))
+
+
+def slugify(text):
+    return re.sub(r'\W+', '-', text.lower())

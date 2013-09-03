@@ -17,10 +17,10 @@ class Update(me.Document):
     # Meta
     created_by = me.ReferenceField('User', required=True, dbref=True)
     created_at = me.DateTimeField(default=datetime.utcnow())
-    updated_by = me.ReferenceField('User', required=True, dbref=True)
+
     # Fields
     project = me.ReferenceField('Project', required=True)
-    text = me.StringField(max_length=140, required=True, regex=UPDATE_REGEX)
+    text = me.StringField(max_length=140, required=True)
     mentions = me.ListField(required=False)
     hashtags = me.ListField(required=False)
 

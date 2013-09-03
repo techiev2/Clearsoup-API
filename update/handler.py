@@ -16,7 +16,7 @@ from requires.base import BaseHandler, authenticated, validate_path_arg
 from datamodels.project import Project
 from datamodels.update import Update
 from utils.dumpers import json_dumper
-
+from utils.app import slugify
 
 class UpdateHandler(BaseHandler):
     """
@@ -26,22 +26,27 @@ class UpdateHandler(BaseHandler):
     """
     SUPPORTED_METHODS = ('GET', 'PUT', 'DELETE')
     REQUIRED_FIELDS   = {
-        'PUT': ('text',),
+        'GET': ('project_id',),
+        'PUT': ('project_id', 'text',),
         'DELETE' : ('id',)
         }
 
-    def get_project(self, project_name):
+    def get_project(self, project_id):
         try:
-            project = Project.objects.get(title__iexact=project_name)
+            project = Project.objects.get(
+                        sequence=project_id,
+                        members=self.current_user
+                    )
         except Project.DoesNotExist:
             project = None
         return project
 
     @authenticated
     @validate_path_arg
-    def put(self, project, *args, **kwargs):
+    def put(self, *args, **kwargs):
+        project_id = self.get_argument('project_id', None)
         # Get the project object
-        project = self.get_project(project)
+        project = self.get_project(project_id)
         if not project:
             self.send_error(404)
         # Create a new update
@@ -51,7 +56,8 @@ class UpdateHandler(BaseHandler):
         update.text = self.get_argument('text', None)
         try:
             update.save()
-        except Exception:
+        except Exception, e:
+            print e
             raise HTTPError(500, 'Could not save update')
 
         self.write({
@@ -60,8 +66,10 @@ class UpdateHandler(BaseHandler):
             })
 
     @authenticated
-    def get(self, project, *args, **kwargs):
-        project = self.get_project(project)
+    def get(self, *args, **kwargs):
+        project_id = self.get_argument('project_id', None)
+        # Get the project object
+        project = self.get_project(project_id)
         if not project:
             self.send_error(404)
         # Retrieve updates
