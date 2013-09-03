@@ -5,10 +5,12 @@ Created on 06-Aug-2013
 '''
 import json
 from tornado.web import HTTPError
-from mongoengine import ValidationError
+from mongoengine import ValidationError, Q
 
 from requires.base import BaseHandler, authenticated, validate_path_arg
 from datamodels.project import Project
+from datamodels.organization import Organization
+from datamodels.user import User
 from datamodels.permission import ProjectPermission
 from utils.app import millisecondToDatetime
 from utils.dumpers import json_dumper
@@ -40,9 +42,27 @@ class ProjectHandler(BaseHandler):
             self.data['created_by'] = self.current_user
         self.data['updated_by'] = self.current_user
 
+
+    # def get_context(self, context):
+    #     """
+    #     Returns the user or project context object
+    #     """
+    #     try:
+
+
     @authenticated
     def get(self, *args, **kwargs):
+        """
+        Get a project object by passing in:
+        1) projectId - the project sequence number (returns a single project)
+        2) owner and project_name - Gets the project in either 
+        the user or org context
+        3) No params - List all the projects for the current authenticated user
+        """
         sequence = self.get_argument('projectId', None)
+        owner = self.get_argument('owner', None)
+        project_name = self.get_argument('project_name', None)
+
         response = {}
         response['project'] = []
         if sequence:
@@ -56,6 +76,29 @@ class ProjectHandler(BaseHandler):
                     raise HTTPError(404, **{'reason': "Project Not found."})
             except ValidationError, error:
                 raise HTTPError(404, **{'reason': self.error_message(error)})
+        
+        elif owner and project_name:
+            # Validate the owner object
+
+            user = User.objects.get(username__iexact=owner)
+            if not user:
+                raise HTTPError(404)
+
+            try:
+                project = Project.objects.get(
+                        Q(created_by=user) &
+                        Q(title__iexact=project_name) &
+                        (
+                            Q(members__in=self.current_user) |
+                            Q(admin=self.current_user)
+                        )
+                    )
+                if project:
+                    self.finish(project.to_json())
+            
+            except Project.DoesNotExist:
+                raise HTTPError(404)
+
         else:
             # Check if we are returning a list of projects for
             # the logged in user
