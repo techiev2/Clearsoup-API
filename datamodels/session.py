@@ -92,14 +92,18 @@ class SessionManager:
         return session
 
     @classmethod
-    def validateOauthLogin(cls, email=None):
+    def validateOauthLogin(cls, email=None, provider=None):
         if not email:
             return False
         # Check if user exists
         try:
             user = User.objects.get(email=email)
-            if user and user.profile.google['email'] == email:
-                return user
+            if provider == 'google':
+                if user and user.profile.google['email'] == email:
+                    return user
+            elif provider == 'github':
+                if user and user.profile.github['email'] == email:
+                    return user
             else:
                 return False
         except User.DoesNotExist:
