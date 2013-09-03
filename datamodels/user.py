@@ -42,9 +42,11 @@ class User(me.Document):
         elif len(User.objects.filter(email=self.email)) > 0:
             raise ValidationError('Email already exists')
 
-    def update_profile(self, google_oauth):
-        if google_oauth and isinstance(google_oauth, dict):
-            user_profile = UserProfile(google=google_oauth)
+    def update_profile(self, _oauth, _provider):
+        if _oauth and isinstance(_oauth, dict):
+            _oauth_dict = {}
+            _oauth_dict = {_provider: _oauth}
+            user_profile = UserProfile(**_oauth_dict)
             user_profile.save()
             self.update(set__profile=user_profile)
 
