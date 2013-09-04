@@ -60,10 +60,13 @@ class UpdateHandler(BaseHandler):
             print e
             raise HTTPError(500, 'Could not save update')
 
-        self.write({
+        response = {
             'status': 200,
-            'message': 'Update saved successfully'
-            })
+            'message': 'Update saved successfully',
+            'update': json_dumper(update)
+        }
+
+        self.finish(json.dumps(response))
 
     @authenticated
     def get(self, *args, **kwargs):
@@ -75,7 +78,7 @@ class UpdateHandler(BaseHandler):
         # Retrieve updates
         updates = None
         try:
-            updates = Update.objects(project=project)
+            updates = Update.objects(project=project).order_by('-created_at')
         except Exception:
             raise HTTPError(404)
 
