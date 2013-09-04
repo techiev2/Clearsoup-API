@@ -31,7 +31,8 @@ class Authenticate(BaseHandler):
         Authenticates the user, generates session token and sends
         it to the client
         """
-        
+        _oauth = None
+        _provider = None
         if self.get_argument('google_oauth', None):
             _oauth, _provider = self.get_argument('google_oauth', None), 'google'
         if self.get_argument('github_oauth', None):
