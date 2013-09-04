@@ -28,6 +28,7 @@ class UserHandler(BaseHandler):
         Register a new user
         """
         data = self.data
+        _oauth = _provider = None
         if 'google_oauth' in data.keys():
             _oauth, _provider = self.clean_oauth_data(data['google_oauth']) , 'google'
             data.pop('google_oauth')
