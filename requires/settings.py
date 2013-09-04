@@ -32,13 +32,13 @@ SETTINGS = {
     'APPS': ['project', 'story','auth', 'core', 'user', 'team', 'permission',
             'sprint', 'update', 'task','organization'],
             
-	# Security
+    # Security
     'cookie': 'token',  # Specify the cookie variable name
     'login_url': '/api/authenticate/',  # Login path for the application
-	'cookie_secret': '$2a$12$/Afye1F0vhEK.EPm0xYLdebypPjz0tnI.iiYhpIUMmCjCnsBwNd/6',
-	# Templating
+    'cookie_secret': '$2a$12$/Afye1F0vhEK.EPm0xYLdebypPjz0tnI.iiYhpIUMmCjCnsBwNd/6',
+    # Templating
     'debug': True,  # Retain debug True for development.
-	# App options
+    # App options
     'mongo_port': 8800,
     'mongo_db': 'clearsoup-db',
     'api_root': 'http://localhost:9000/api/',
