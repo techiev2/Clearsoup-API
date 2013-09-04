@@ -28,13 +28,13 @@ class UserHandler(BaseHandler):
         Register a new user
         """
         data = self.data
+        _oauth = _provider = None
         if 'google_oauth' in data.keys():
             _oauth, _provider = self.clean_oauth_data(data['google_oauth']) , 'google'
             data.pop('google_oauth')
         if 'github_oauth' in data.keys():
             _oauth, _provider = self.clean_oauth_data(data['github_oauth']) , 'github'
             data.pop('github_oauth')
-
         user = User(**data)
         # Password has to be hashed
         user.password = SessionManager.encryptPassword(user.password)
