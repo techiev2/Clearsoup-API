@@ -80,7 +80,7 @@ class UpdateHandler(BaseHandler):
             raise HTTPError(404)
 
         if not updates:
-            raise HTTPError(404)
+            updates = []
 
         response = json_dumper(updates)
         self.finish(json.dumps(response))
