@@ -34,12 +34,13 @@ class UserHandler(BaseHandler):
         if 'github_oauth' in data.keys():
             _oauth, _provider = self.clean_oauth_data(data['github_oauth']) , 'github'
             data.pop('github_oauth')
+
         user = User(**data)
         # Password has to be hashed
         user.password = SessionManager.encryptPassword(user.password)
         try:
             user.save(validate=True, clean=True)
-            user.update_profile(_oauth, _provider)
+            user.update_profile(_oauth=_oauth, _provider=_provider)
 #            async_email = AsycnEmail(self.request)
 #            async_email.generate_publish_content(user=user)
 #            async_email.send_email(email=user.email)
