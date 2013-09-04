@@ -32,6 +32,7 @@ class Authenticate(BaseHandler):
         it to the client
         """
         
+        _oauth = None
         if self.get_argument('google_oauth', None):
             _oauth, _provider = self.get_argument('google_oauth', None), 'google'
         if self.get_argument('github_oauth', None):
