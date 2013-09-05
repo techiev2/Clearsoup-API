@@ -53,14 +53,19 @@ class UserProfile(me.Document):
     @classmethod
     def post_save(cls, sender, document, **kwargs):
         if not document.first_name and not document.last_name:
+            first_name = last_name = ''
             if document.google:
-                first_name = document.google['first_name']
-                last_name = document.google['last_name']
+                if 'first_name' in document.google.keys(): 
+                    first_name = document.google['first_name']
+                if 'last_name' in document.google.keys():
+                    last_name = document.google['last_name']
             if document.github:
                 try:
                     first_name, last_name = document.github['name'].split(' ')
                 except ValueError:
                     first_name, last_name = document.github['name'], ''
+                except KeyError:
+                    pass
             document.update(set__first_name=first_name,
                             set__last_name=last_name)
 
