@@ -1,6 +1,6 @@
 import sys
 sys.dont_write_bytecode = True
-
+import re
 import mongoengine as me
 from mongoengine.base import ValidationError
 
@@ -10,16 +10,14 @@ from utils.dumpers import  json_dumper
 
 sys.dont_write_bytecode = True
 
-USERNAME_REGX = '^[a-zA-Z0-9_]*$'
-EMAIL_REGX = '^[a-zA-Z0-9_.-@]*$'
+USERNAME_REGX = re.compile('[a-zA-Z0-9-_\.]*$')
+EMAIL_REGX = re.compile('[a-zA-Z0-9_.-@]*$')
 
 class User(me.Document):
     username = me.StringField(max_length=32,
-                              unique=True, required=True,
-                              regex=USERNAME_REGX)
+                              unique=True, required=True)
     password = me.StringField(required=True)
-    email = me.EmailField(required=True, unique=True,
-                          regex=EMAIL_REGX)
+    email = me.EmailField(required=True, unique=True)
     # Profile
     profile = me.ReferenceField('UserProfile', dbref=True)
     # Org
@@ -35,12 +33,15 @@ class User(me.Document):
 
     def to_json(self, fields=None, exclude=None):
         return json_dumper(self, fields, exclude)
-
+    
     def clean(self):
         if len(User.objects.filter(username=self.username)) > 0:
             raise ValidationError('Username already exists')
-        elif len(User.objects.filter(email=self.email)) > 0:
+        if len(User.objects.filter(email=self.email)) > 0:
             raise ValidationError('Email already exists')
+        if USERNAME_REGX is not None and USERNAME_REGX.match(
+                 self.username) is None:
+            raise ValidationError('Special characters not allowed in username.')
 
     def update_profile(self, _oauth=None, _provider=None):
         if _oauth and isinstance(_oauth, dict):
