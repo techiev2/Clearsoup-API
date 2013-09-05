@@ -35,7 +35,6 @@ class UserHandler(BaseHandler):
         if 'github_oauth' in data.keys():
             _oauth, _provider = self.clean_oauth_data(data['github_oauth']) , 'github'
             data.pop('github_oauth')
-
         user = User(**data)
         # Password has to be hashed
         user.password = SessionManager.encryptPassword(user.password)

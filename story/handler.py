@@ -52,7 +52,6 @@ class StoryHandler(BaseHandler):
     def get_project_object(self, sequence):
         try:
             project = Project.get_project_object(sequence=sequence)
-            print 55
         except ValidationError, error:
             raise HTTPError(404, **{'reason': self.error_message(error)})
         return project
