@@ -61,7 +61,7 @@ class ProjectHandler(BaseHandler):
         """
         sequence = self.get_argument('projectId', None)
         owner = self.get_argument('owner', None)
-        project_name = self.get_argument('project_name', None)        
+        project_name = self.get_argument('project_name', None)
         
         response = {}
         # By Sequence number

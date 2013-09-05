@@ -23,27 +23,44 @@ class SprintHandler(BaseHandler):
     SUPPORTED_METHODS = ('GET', 'PUT')
     REQUIRED_FIELDS   = {
         'PUT': ('projectId','sprints'),
-        'GET': ('projectId',)
         }
     data = {}
     
-    def get_valid_project(self, project_id):
-        if not project_id:
+    def get_valid_project(self, project_id=None, permalink=None):
+        if not project_id and not permalink:
             self.send_error(404)
-        try:
-            project = Project.get_project_object(project_id)
-            if self.current_user not in project.members:
-                self.send_error(404)
-        except ValidationError, error:
-            raise HTTPError(404, **{'reason': self.error_message(error)})
+        if project_id:
+            try:
+                project = Project.get_project_object(project_id=project_id)
+                if self.current_user not in project.members:
+                    self.send_error(404)
+            except ValidationError, error:
+                raise HTTPError(404, **{'reason': self.error_message(error)})
+        elif permalink:
+            try:
+                project = Project.objects.get(
+                            permalink__iexact=permalink,
+                        )
+                if not self.current_user in project.members:
+                    raise HTTPError(403)
+            except ValidationError, error:
+                raise HTTPError(404, **{'reason': self.error_message(error)})
         return project
 
     @authenticated
     def get(self,*args, **kwargs):
         project_id = self.get_argument('projectId', None)
+        owner = self.get_argument('owner', None)
+        project_name = self.get_argument('project_name', None)
+
         sprint_sequence = self.get_argument('sprint',None)
         response = {}
-        project = self.get_valid_project(project_id)
+        if project_id:
+            project = self.get_valid_project(project_id)
+        elif owner and project_name:
+            permalink = owner + '/' + project_name
+            project = self.get_valid_project(project_id, permalink)
+
         if not sprint_sequence:
             sprints = list(Sprint.objects.filter(project=project))
             response['sprints'] = json_dumper(sprints)
