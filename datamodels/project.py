@@ -15,7 +15,7 @@ from mongoengine import signals
 from utils.dumpers import json_dumper
 from utils.app import slugify
 
-TITLE_REGEX = '^[a-zA-Z0-9_\s]*$'
+TITLE_REGEX = '^[a-zA-Z0-9-_\s]*$'
 DESCRIPTION_REGEX = '^[a-zA-Z0-9-_,;.\?\/\s]*$'
 
 # srinath/Clearsoup-Web
@@ -26,9 +26,8 @@ class Project(me.Document):
                                      reverse_delete_rule=me.CASCADE, 
                                      default=None)
     # these four will come in request data for put
-    title = me.StringField(max_length=64, required=True, unique=True,
-                           regex=TITLE_REGEX)
-    permalink = me.StringField()
+    title = me.StringField(max_length=64, required=True)
+    permalink = me.StringField(required=True, unique=True)
     start_date = me.DateTimeField(default=datetime.utcnow())
     end_date = me.DateTimeField(default=datetime.utcnow())
     duration = me.IntField() #  sprint duration
@@ -42,8 +41,7 @@ class Project(me.Document):
     members = me.ListField()
     admin = me.ListField(me.ReferenceField('User'))
     is_active = me.BooleanField(default=True)
-    description = me.StringField(max_length=500,
-                                 regex=DESCRIPTION_REGEX)
+    description = me.StringField(max_length=500)
     
     # these have to be moved to base model
     created_by = me.ReferenceField('User', required=True, dbref=True)
@@ -55,7 +53,7 @@ class Project(me.Document):
     
 
     meta = {
-        'indexes': ['title']
+        'indexes': ['title','permalink']
         }
 
     def __init__(self, *args, **values):
@@ -68,11 +66,17 @@ class Project(me.Document):
         return json_dumper(self, fields, exclude)
 
     def clean(self):
-        Project.objects.filter(title=self.title).count()
-        if Project.objects.filter(title=self.title).count() > 0:
+        permalink = self.get_permalink()
+        if Project.objects.filter(permalink=permalink).count() > 0:
             raise ValidationError('Duplicate project')
         if self.start_date > self.end_date:
             raise ValidationError('start date should be greater than end date.')
+
+    def get_permalink(self):
+        owner = self.organization.name if self.organization else\
+                self.created_by.username
+        permalink = slugify(owner) + '/' + slugify(self.title)
+        return permalink
 
     @classmethod
     def last_project_id(cls, organization=None):
@@ -111,13 +115,9 @@ class Project(me.Document):
             1. update sequence value
         '''
         if document.sequence:
-            owner = document.organization.name if document.organization else\
-                    document.created_by.username
-            permalink = slugify(owner) + '/' + slugify(document.title)
             document.update(set__sequence=document.sequence,
                             set__members=[document.created_by],
-                            set__admin=[document.created_by],
-                            set__permalink=permalink)
+                            set__admin=[document.created_by])
 
     def create_sprints(self):
         for (idx, sprint) in enumerate(self.sprints):
@@ -264,6 +264,9 @@ class Project(me.Document):
             call save only in case of project PUT.
             for any modification call project.update.
         '''
+        # Set the permalink
+        self.permalink = self.get_permalink()
+
         super(Project, self).save(*args, **kwargs)
         self.calculate_sprints()
         self.reload()
