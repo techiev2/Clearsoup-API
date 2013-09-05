@@ -34,12 +34,10 @@ class Story(me.Document):
     
     title = me.StringField(required=True,
                              max_length=128,
-                             unique_with='project',
-                             regex=TITLE_REGEX)
+                             unique_with='project')
     priority = me.StringField(choices=PRIORITIES)
     description = me.StringField(max_length=500,
-                                required=False,
-                                regex=DESCRIPTION_REGEX)
+                                required=False)
     sequence = me.IntField(unique_with='project')
     status = me.StringField()
 
