@@ -65,7 +65,6 @@ class TaskHandler(BaseHandler):
             except Task.DoesNotExist:
                 pass
         return task
-    
 
     @authenticated
     def get(self,*args, **kwargs):
@@ -81,7 +80,8 @@ class TaskHandler(BaseHandler):
                 else:
                     response['task'] = task.to_json()
             else:
-                response = json_dumper(Task.objects.filter(project=project))
+                response = json_dumper(Task.objects.filter(project=project
+                                       ).order_by('sequence'))
         self.finish(json.dumps(response))
 
     @authenticated
@@ -92,7 +92,11 @@ class TaskHandler(BaseHandler):
         if project_id:
             project = self.get_project_object(project_id)
             if task_id:
-                pass
+                task = self.get_task_object(project=project, sequence=task_id)
+                if 'state' in self.data.keys() and self.data['state']:
+                    task.task_state_transition(data=self.data,
+                                               user=self.current_user)
+                
                 # update a task
         self.finish(json.dumps(response))
 
