@@ -31,7 +31,7 @@ class SprintHandler(BaseHandler):
             self.send_error(404)
         if project_id:
             try:
-                project = Project.get_project_object(project_id=project_id)
+                project = Project.get_project_object(sequence=project_id)
                 if self.current_user not in project.members:
                     self.send_error(404)
             except ValidationError, error:
