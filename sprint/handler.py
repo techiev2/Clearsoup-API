@@ -15,6 +15,7 @@ from mongoengine.errors import ValidationError
 
 from requires.base import BaseHandler, authenticated
 from datamodels.project import Project, Sprint
+from datamodels.task import Task
 from utils.dumpers import json_dumper
 
 
@@ -67,8 +68,17 @@ class SprintHandler(BaseHandler):
         elif sprint_sequence:
             try:
                 sprint = project.get_sprint_object(sprint_sequence)
+                stories = list(sprint.get_stories())
+                tasks = [{story.title : Task.objects.filter(story=story).count()}
+                           for story in stories]
                 response['sprint'] = sprint.to_json()
-                response['stories'] = json_dumper(list(sprint.get_stories()))
+                response['stories'] = json_dumper(stories)
+                # updating story json with task count
+                for each in response['stories']:
+                    for i in tasks:
+                        if each['title'] in i.keys() :
+                            each.update({'task_count': i.get(each['title'])})
+                
             except ValidationError, error:
                 raise HTTPError(404, **{'reason': self.error_message(error)})
         response['project'] = project.to_json()

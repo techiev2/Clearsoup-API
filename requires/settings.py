@@ -29,7 +29,7 @@ class ClearSoupApp(Application, object):
 GEN_PATH = lambda path: os.path.join(os.getcwd(), path)
 
 SETTINGS = {
-    'APPS': ['project', 'story','auth', 'core', 'user', 'team', 'permission',
+    'APPS':['project', 'story','auth', 'core', 'user', 'team', 'permission',
             'sprint', 'update', 'task','organization'],
             
     # Security
