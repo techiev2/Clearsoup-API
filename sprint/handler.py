@@ -69,7 +69,9 @@ class SprintHandler(BaseHandler):
             try:
                 sprint = project.get_sprint_object(sprint_sequence)
                 stories = list(sprint.get_stories())
-                tasks = [{story.title : Task.objects.filter(story=story).count()}
+                tasks = [{story.title : Task.objects.filter(story=story).count(),
+                          'closed_tasks': Task.objects.filter(story=story,
+                                          current_action='Closed').count()}
                            for story in stories]
                 response['sprint'] = sprint.to_json()
                 response['stories'] = json_dumper(stories)
@@ -77,7 +79,8 @@ class SprintHandler(BaseHandler):
                 for each in response['stories']:
                     for i in tasks:
                         if each['title'] in i.keys() :
-                            each.update({'task_count': i.get(each['title'])})
+                            each.update({'task_count': i.get(each['title']),
+                                         'closed_tasks': i['closed_tasks']})
                 
             except ValidationError, error:
                 raise HTTPError(404, **{'reason': self.error_message(error)})
