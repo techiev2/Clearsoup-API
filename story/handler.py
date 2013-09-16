@@ -33,7 +33,7 @@ class StoryHandler(BaseHandler):
         '''
         
         sequence = self.data['projectId']
-        project =self.get_project_object(sequence)
+        project =self.get_valid_project(project_id=sequence)
         if not project:
             self.send_error(400)
         else:
@@ -49,9 +49,28 @@ class StoryHandler(BaseHandler):
             except ValidationError, error:
                 raise HTTPError(404, **{'reason': self.error_message(error)})
 
-    def get_project_object(self, sequence):
+    def get_valid_project(self, project_id=None, permalink=None):
+        if not project_id and not permalink:
+            self.send_error(404)
+        if project_id:
+            try:
+                project = Project.get_project_object(sequence=project_id)
+                if self.current_user not in project.members:
+                    self.send_error(404)
+            except ValidationError, error:
+                raise HTTPError(404, **{'reason': self.error_message(error)})
+        elif permalink:
+            try:
+                project = Project.objects.get(
+                            permalink__iexact=permalink,
+                        )
+                if not self.current_user in project.members:
+                    raise HTTPError(403)
+            except ValidationError, error:
+                raise HTTPError(404, **{'reason': self.error_message(error)})
+        return project
         try:
-            project = Project.get_project_object(sequence=sequence)
+            project = Project.get_project_object(sequence=project_id)
         except ValidationError, error:
             raise HTTPError(404, **{'reason': self.error_message(error)})
         return project
@@ -67,7 +86,7 @@ class StoryHandler(BaseHandler):
         self.write(story.to_json())
 
     def get_project_stories(self, project_id):
-        project = self.get_project_object(project_id)
+        project = self.get_valid_project(project_id=project_id)
         if project and self.current_user in project.members:
             return Project.get_story_list(project)
         else:
@@ -77,19 +96,23 @@ class StoryHandler(BaseHandler):
     def get(self,*args, **kwargs):
         story_id = self.get_argument('storyId', None)
         project_id = self.get_argument('projectId', None)
-        response = None
-        if story_id and not project_id:
+        owner = self.get_argument('owner', None)
+        project_name = self.get_argument('project_name', None)
+        if project_id:
+            project = self.get_valid_project(project_id)
+        elif owner and project_name:
+            permalink = owner + '/' + project_name
+            project = self.get_valid_project(project_id, permalink)
+        else:
             self.send_error(400)
-        if project_id :
-            project = self.get_project_object(project_id)
-            if project and story_id:
-                try:
-                    story = Story.objects.get(sequence=int(story_id),
+        if project and story_id:
+            try:
+                story = Story.objects.get(sequence=int(story_id),
                                               project=project)
-                    response = story.to_json()
-                except Story.DoesNotExist, error:
-                    raise HTTPError(500, **{'reason':self.error_message(error)})
-            elif not story_id and project:
+                response = story.to_json()
+            except Story.DoesNotExist, error:
+                raise HTTPError(500, **{'reason':self.error_message(error)})
+        elif not story_id and project:
                 response = json_dumper(Story.objects.filter(project=project))
         else:
             response = json_dumper(Story.objects.filter(is_active=True,
@@ -99,10 +122,32 @@ class StoryHandler(BaseHandler):
 
     @authenticated
     def post(self, *args, **kwargs):
-        '''TBD'''
-        sequence = self.get_argument('id', None)
-        project = self.get_project_object(sequence)
-        self.write(project.to_json())
+        story_id = self.get_argument('storyId', None)
+        project_id = self.get_argument('projectId', None)
+        owner = self.get_argument('owner', None)
+        project_name = self.get_argument('project_name', None)
+        story = None
+#        post_data = self.data
+        self.clean_request()
+        if project_id:
+            project = self.get_valid_project(project_id)
+        elif owner and project_name:
+            permalink = owner + '/' + project_name
+            project = self.get_valid_project(project_id, permalink)
+        else:
+            self.send_error(400)
+        if project and story_id:
+            try:
+                story = Story.objects.get(sequence=int(story_id),
+                                              project=project)
+                temp_data = {'set__'+field: self.data[field] for field 
+                                 in Story._fields.keys() 
+                                 if field in self.data.keys()}
+                temp_data.update({'set__updated_by': self.current_user})
+                story.update(**temp_data)
+            except Story.DoesNotExist, error:
+                raise HTTPError(500, **{'reason':self.error_message(error)})
+        self.write(story.to_json())
 
     @authenticated
     def delete(self, *args, **kwargs):
