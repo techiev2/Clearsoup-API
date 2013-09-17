@@ -25,6 +25,9 @@ class Update(me.Document):
     hashtags = me.ListField(required=False)
 
     def save(self, *args, **kwargs):
+        # Explicitly set the date as mongo(engine|db) seems to
+        # cache the date
+        self.created_at = datetime.utcnow()
         # Extract list of mentions and hashtags
         # and save it
         mentions = re.findall(MENTION_REGEX, self.text)
