@@ -308,7 +308,8 @@ class Sprint(me.Document):
     def get_stories(self):
         # import is done here in order to resolve cyclic import
         from datamodels.story import Story
-        return Story.objects.filter(sprint=self).order_by('created_at')
+        return Story.objects.filter(sprint=self,
+                                    is_active=True).order_by('created_at')
 
     def to_json(self, fields=None, exclude=None):
         return json_dumper(self, fields, exclude)
