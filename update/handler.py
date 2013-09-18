@@ -78,7 +78,7 @@ class UpdateHandler(BaseHandler):
         # Retrieve updates
         updates = None
         try:
-            updates = Update.objects(project=project).order_by('-created_at')
+            updates = Update.objects(project=project).order_by('-id')
         except Exception:
             raise HTTPError(404)
 
