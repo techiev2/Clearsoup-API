@@ -158,6 +158,7 @@ class StoryHandler(BaseHandler):
         story = None
         project = None
         self.clean_request()
+        
         if project_id:
             project = self.get_valid_project(project_id)
         elif owner and project_name:
@@ -192,9 +193,9 @@ class StoryHandler(BaseHandler):
                 response = {'message': 'Successfully moved to sprint %s.' % str(
                                                 self.data['sprint'].sequence),
                             'status': 200}
-                self.write(response)
-            else:
-                self.send_error(404)
+            self.write(response)
+        else:
+            self.send_error(404)
 
     @authenticated
     def delete(self, *args, **kwargs):
