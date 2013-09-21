@@ -308,6 +308,7 @@ class Sprint(me.Document):
     def get_stories(self):
         # import is done here in order to resolve cyclic import
         from datamodels.story import Story
+#        [s.update(set__is_active=True) for s in Story.objects]
         return Story.objects.filter(sprint=self,
                                     is_active=True).order_by('created_at')
 
