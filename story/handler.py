@@ -132,7 +132,8 @@ class StoryHandler(BaseHandler):
             id = 0
             for id, story in enumerate(stories):
                 try:
-                    Story.objects.get(sequence=int(story))
+                    Story.objects.get(sequence=int(story),
+                                      project=project)
                 except Story.DoesNotExist:
                     msg = 'Invalid story sequences'
                     raise HTTPError(500, **{'reason':msg})
