@@ -28,8 +28,12 @@ class TaskHandler(BaseHandler):
     
     def clean_request(self):
         if self.request.method == 'PUT':
-            for k in ['estimated_completion_date',]:
-                self.data[k] = millisecondToDatetime(self.data[k])
+            if 'estimated_completion_date' in self.data.keys() and\
+             self.data['estimated_completion_date']:
+                for k in ['estimated_completion_date',]:
+                    self.data[k] = millisecondToDatetime(self.data[k])
+            else:
+                self.data.pop('estimated_completion_date')
             self.data['project'] = self.get_project_object(
                                                    self.data['projectId'])
             self.data['story'] = self.get_story_object(

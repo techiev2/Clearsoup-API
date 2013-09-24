@@ -8,6 +8,7 @@ from tornado.web import HTTPError
 from requires.base import BaseHandler, authenticated
 from datamodels.project import Project
 from datamodels.story import Story
+from datamodels.task import TASK_TYPES
 from datamodels.permission import ProjectPermission
 from mongoengine.errors import ValidationError
 from utils.dumpers import json_dumper
@@ -100,6 +101,7 @@ class StoryHandler(BaseHandler):
         project_id = self.get_argument('projectId', None)
         owner = self.get_argument('owner', None)
         project_name = self.get_argument('project_name', None)
+        response = {}
         if project_id:
             project = self.get_valid_project(project_id)
         elif owner and project_name:
@@ -110,8 +112,11 @@ class StoryHandler(BaseHandler):
         if project and story_id:
             try:
                 story = Story.objects.get(sequence=int(story_id),
-                                              project=project)
-                response = story.to_json()
+                                              project=project,
+                                              is_active=True)
+                response['story'] = story.to_json()
+                response['tasks'] = json_dumper(story.get_tasks())
+                response['task_type'] = TASK_TYPES
             except Story.DoesNotExist, error:
                 raise HTTPError(500, **{'reason':self.error_message(error)})
         elif not story_id and project:
