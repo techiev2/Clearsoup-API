@@ -107,6 +107,13 @@ class Story(me.Document):
     def update(self, *args, **kwargs):
         super(Story, self).update(*args, **kwargs)
         self.reload()
+    
+    def get_tasks(self):
+        # import is done here to avoid cyclic references.
+        from datamodels.task import Task
+        tasks = Task.objects.filter(story=self,
+                                    is_active=True).order_by('sequence')
+        return tasks
 
 
 signals.pre_save.connect(Story.pre_save, sender=Story)
