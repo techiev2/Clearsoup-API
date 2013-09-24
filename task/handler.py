@@ -84,8 +84,8 @@ class TaskHandler(BaseHandler):
                 else:
                     response['task'] = task.to_json()
             else:
-                response = json_dumper(Task.objects.filter(project=project
-                                       ).order_by('sequence'))
+                response['task'] = json_dumper(list(Task.objects.filter(project=project
+                                       ).order_by('sequence')))
         self.finish(json.dumps(response))
 
     @authenticated
