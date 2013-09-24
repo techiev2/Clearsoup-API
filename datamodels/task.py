@@ -12,6 +12,8 @@ import mongoengine as me
 from mongoengine import signals
 from mongoengine import ValidationError
 
+from datamodels.story import Story
+from datamodels.project import Project
 from utils.dumpers import json_dumper
 
 sys.dont_write_bytecode = True
@@ -55,10 +57,8 @@ class Task(me.Document):
     
     task_type = me.StringField(choices=TASK_TYPES, required=True)
     sequence = me.IntField()
-    title = me.StringField(max_length=128, unique_with=['story', 'project'],
-                           regex=TITLE_REGEX)
-    description = me.StringField(max_length=500,
-                                 regex=DESCRIPTION_REGEX)
+    title = me.StringField(max_length=128, unique_with=['project'])
+    description = me.StringField(max_length=500)
     assigned_to = me.ReferenceField('User')
     estimated_completion_date = me.DateTimeField(required=False)
     actual_completion_date = me.DateTimeField(required=False)
@@ -75,15 +75,20 @@ class Task(me.Document):
     created_by = me.ReferenceField('User', required=False)
     updated_by = me.ReferenceField('User', required=False)
     is_active = me.BooleanField(default=True)
-
+    is_pmo = me.BooleanField(default=False)
 
     def __init__(self, *args, **kwargs):
         super(Task, self).__init__( *args, **kwargs)
+        self._state = Fysom(states['default'])
 
-#        self._state = Fysom(states['default'])
+    def __str__(self):
+        return self.title
 
-
-
+#    def task_state_transition(self, data=None, user=None):
+#        state = data['state']
+#        if state == 'assign'
+#        self.update(set__current_action)
+        
     def clean(self):
         tasks = Task.objects.filter(title=self.title,project=self.project,
                                     story=self.story).count()
@@ -122,7 +127,6 @@ class Task(me.Document):
         if document.sequence:
             document.update(set__sequence=document.sequence,
                             set__current_action='New')
-
 
     def save(self, *args, **kwargs):
         '''
