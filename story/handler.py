@@ -8,7 +8,7 @@ from tornado.web import HTTPError
 from requires.base import BaseHandler, authenticated
 from datamodels.project import Project
 from datamodels.story import Story
-from datamodels.task import TASK_TYPES
+from datamodels.task import Task, TASK_TYPES
 from datamodels.permission import ProjectPermission
 from mongoengine.errors import ValidationError
 from utils.dumpers import json_dumper
@@ -230,6 +230,11 @@ class StoryHandler(BaseHandler):
                                                       project=project,
                                                       is_active=True)
                             story.update(set__is_active=False)
+                            tasks  = list(Task.objects.filter(story=story,
+                                                project=project,
+                                                is_active=True))
+                            [task.update(set__is_active=False) for task
+                             in tasks]
                         except Story.DoesNotExist, error:
                             raise HTTPError(500, **{'reason':self.error_message(error)})
                     response = {'message': 'Successfully deleted.',
