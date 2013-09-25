@@ -33,8 +33,7 @@ class Story(me.Document):
                                dbref=True)
     
     title = me.StringField(required=True,
-                             max_length=128,
-                             unique_with='project')
+                             max_length=128)
     priority = me.StringField(choices=PRIORITIES)
     description = me.StringField(max_length=500,
                                 required=False)
@@ -59,7 +58,8 @@ class Story(me.Document):
 
     def clean(self):
         if Story.objects.filter(title=self.title,
-                                project=self.project).count() > 0:
+                                project=self.project,
+                                is_active=True).count() > 0:
             raise ValidationError('Duplicate Story')
 
     @classmethod
@@ -84,9 +84,9 @@ class Story(me.Document):
         if document.created_by not in document.project.admin:
             raise ValidationError('You are not admin of this project')
         if len(document.title) > 128:
-            ValidationError('Story exceeds 128 characters')
+            raise ValidationError('Story exceeds 128 characters')
         if document.description and len(document.description) > 500:
-            ValidationError('Story exceeds 128 characters')
+            raise ValidationError('Story description exceeds 500 characters')
 
     @classmethod
     def post_save(cls, sender, document, **kwargs):
