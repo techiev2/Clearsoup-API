@@ -108,6 +108,8 @@ class Project(me.Document):
             document.sequence = 1
         if len(document.title) > 64:
             raise ValidationError('Title exceeds 64 characters')
+        if len(document.description) > 500:
+            raise ValidationError('Description exceeds 500 characters')
 
     @classmethod
     def post_save(cls, sender, document, **kwargs):
