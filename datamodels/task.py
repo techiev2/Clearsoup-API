@@ -56,14 +56,14 @@ class Task(me.Document):
     """
     
     task_type = me.StringField(choices=TASK_TYPES, required=True)
-    sequence = me.IntField()
-    title = me.StringField(max_length=128, unique_with=['project'])
+    sequence = me.IntField(unique_with=['project'], required=True)
+    title = me.StringField(max_length=128)
     description = me.StringField(max_length=500)
     assigned_to = me.ReferenceField('User')
     estimated_completion_date = me.DateTimeField(required=False)
     actual_completion_date = me.DateTimeField(required=False)
     current_action = me.StringField()
-    
+    members = me.ListField(me.ReferenceField('User', dbref=True))
     # Either parent task or child tasks
     parent_task = me.ReferenceField('self', required=False)
     child_tasks = [me.ReferenceField('self', required=False)]
@@ -90,8 +90,10 @@ class Task(me.Document):
 #        self.update(set__current_action)
         
     def clean(self):
-        tasks = Task.objects.filter(title=self.title,project=self.project,
-                                    story=self.story).count()
+        tasks = Task.objects.filter(title=self.title,
+                                    project=self.project,
+                                    story=self.story,
+                                    is_active=True).count()
         if tasks > 0:
             raise ValidationError('Duplicate Task')
 
@@ -123,10 +125,14 @@ class Task(me.Document):
     def post_save(cls, sender, document, **kwargs):
         '''
             1. update sequence value
+            2. update members list
         '''
         if document.sequence:
             document.update(set__sequence=document.sequence,
                             set__current_action='New')
+        if document.created_by not in document.members:
+            document.members = [document.created_by]
+            document.update(set__members=document.members)
 
     def save(self, *args, **kwargs):
         '''
