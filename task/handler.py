@@ -65,7 +65,8 @@ class TaskHandler(BaseHandler):
         task = None
         if sequence:
             try:
-                task = Task.objects.get(project=project,sequence=sequence)
+                task = Task.objects.get(project=project,sequence=sequence,
+                                        is_active=True)
             except Task.DoesNotExist:
                 pass
         return task
@@ -80,11 +81,13 @@ class TaskHandler(BaseHandler):
             if task_id:
                 task = self.get_task_object(project, task_id)
                 if not task:
-                    raise HTTPError(404, **{'reason': 'Task matching query not found'})
+                    raise HTTPError(404, **{'reason': 'Task not found'})
                 else:
                     response['task'] = task.to_json()
             else:
-                response['task'] = json_dumper(list(Task.objects.filter(project=project
+                response['task'] = json_dumper(list(
+                                Task.objects.filter(project=project,
+                                                    is_active=True
                                        ).order_by('sequence')))
         self.finish(json.dumps(response))
 
@@ -124,7 +127,7 @@ class TaskHandler(BaseHandler):
             if task_id:
                 task = self.get_task_object(project, task_id)
                 if not task:
-                    raise HTTPError(404, **{'reason': 'Task matching query not found'})
+                    raise HTTPError(404, **{'reason': 'Task not found'})
                 else:
                     task.update(set__is_active=False)
                     response['task'] = task.to_json()
