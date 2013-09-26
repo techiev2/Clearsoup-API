@@ -72,11 +72,6 @@ class StoryHandler(BaseHandler):
             except ValidationError, error:
                 raise HTTPError(404, **{'reason': self.error_message(error)})
         return project
-        try:
-            project = Project.get_project_object(sequence=project_id)
-        except ValidationError, error:
-            raise HTTPError(404, **{'reason': self.error_message(error)})
-        return project
 
     @authenticated
     def put(self, *args, **kwargs):
