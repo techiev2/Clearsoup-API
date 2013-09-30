@@ -69,9 +69,11 @@ class SprintHandler(BaseHandler):
             try:
                 sprint = project.get_sprint_object(sprint_sequence)
                 stories = list(sprint.get_stories())
-                tasks = [{story.title : Task.objects.filter(story=story).count(),
+                tasks = [{story.title : Task.objects.filter(story=story,
+                                                        is_active=True).count(),
                           'closed_tasks': Task.objects.filter(story=story,
-                                          current_action='Closed').count()}
+                                          current_action='Closed',
+                                          is_active=True).count()}
                            for story in stories]
                 response['sprint'] = sprint.to_json()
                 response['stories'] = json_dumper(stories)
