@@ -35,7 +35,7 @@ class Update(me.Document):
         if document.created_by not in document.project.members:
             raise ValidationError('You are not a member of this project')
         if len(document.text) > 140:
-            raise ValidationError('Story exceeds 140 characters')
+            raise ValidationError('Update exceeds 140 characters')
 
 
     def save(self, *args, **kwargs):
