@@ -56,9 +56,8 @@ class UpdateHandler(BaseHandler):
         update.text = self.get_argument('text', None)
         try:
             update.save()
-        except Exception, e:
-            print e
-            raise HTTPError(500, 'Could not save update')
+        except ValidationError, error:
+            raise HTTPError(500, **{'reason':self.error_message(error)})
 
         response = {
             'status': 200,
