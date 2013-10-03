@@ -19,10 +19,24 @@ class Update(me.Document):
     created_at = me.DateTimeField(default=datetime.utcnow())
 
     # Fields
-    project = me.ReferenceField('Project', required=True)
+    project = me.ReferenceField('Project', required=True, dbref=True)
     text = me.StringField(max_length=140, required=True)
     mentions = me.ListField(required=False)
     hashtags = me.ListField(required=False)
+
+    @classmethod
+    def pre_save(cls, sender, document, **kwargs):
+        '''
+            validating max length and mentioned user
+        '''
+        mentions = re.findall(MENTION_REGEX, document.text)
+        if len(mentions) > 0:
+            document.mentions = [mention[1:] for mention in mentions]
+        if document.created_by not in document.project.members:
+            raise ValidationError('You are not a member of this project')
+        if len(document.text) > 140:
+            raise ValidationError('Story exceeds 140 characters')
+
 
     def save(self, *args, **kwargs):
         # Explicitly set the date as mongo(engine|db) seems to
@@ -65,4 +79,7 @@ class TaskUpdate(me.Document):
             self.project.hashtags.extend(self.hashtags)
             self.project.update(set__hashtags=set(self.project.hashtags))
         super(TaskUpdate, self).save(*args, **kwargs)
+
+
+signals.pre_save.connect(Update.pre_save, sender=Update)
 
