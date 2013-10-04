@@ -8,7 +8,7 @@ from tornado.web import HTTPError
 from mongoengine.errors import ValidationError
 
 from requires.base import BaseHandler, authenticated, validate_path_arg
-from datamodels.project import Project
+from datamodels.project import Project, Sprint
 from datamodels.story import Story
 from datamodels.task import Task
 from datamodels.permission import ProjectPermission
@@ -125,10 +125,22 @@ class TaskHandler(BaseHandler):
                 else:
                     response['task'] = task.to_json()
             else:
+                query = {
+                    'project': project,
+                    'is_active': True,
+                }
+                # If sprint is set, get the tasks only for that sprint
+                sprint_number = self.get_argument('sprint', None)
+                if sprint_number:
+                    # Get the sprint
+                    sprint = Sprint.objects.get(project=project,
+                                                sequence=int(sprint_number))
+                    query['story__in'] = sprint.get_stories()
+
                 response['task'] = json_dumper(list(
-                                Task.objects.filter(project=project,
-                                                    is_active=True
-                                       ).order_by('sequence')))
+                                    Task.objects.filter(**query).exclude('project','story')
+                                    .order_by('sequence')
+                                ))
         self.finish(json.dumps(response))
 
     @authenticated
