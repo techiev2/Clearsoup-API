@@ -4,6 +4,7 @@ Created on 23-Aug-2013
 @author: someshs
 '''
 import json
+import re
 from tornado.web import HTTPError
 from mongoengine import Q
 from mongoengine.errors import ValidationError
@@ -41,8 +42,12 @@ class TaskHandler(BaseHandler):
                 self.data.pop('estimated_completion_date')
             if 'estimated_effort' in self.data.keys() and\
              self.data['estimated_effort']:
-                self.data['estimated_effort'] = int(
-                                                self.data['estimated_effort'])
+                pat = "^-?[0-9]+$"
+                val = re.findall(pat , self.data['estimated_effort'])
+                if val:
+                    self.data['estimated_effort'] = int(val[0])
+                else:
+                    raise HTTPError(404, **{'reason': 'Efforts should be only in integers.'})
             else:
                 self.data.pop('estimated_effort')
             self.data['project'] = self.get_project_object(
