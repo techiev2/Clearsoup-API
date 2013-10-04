@@ -60,6 +60,8 @@ class Task(me.Document):
     title = me.StringField(max_length=128)
     description = me.StringField(max_length=500)
     assigned_to = me.ReferenceField('User')
+    estimated_effort = me.IntField()
+    logged_effort = me.IntField()
     estimated_completion_date = me.DateTimeField(required=False)
     actual_completion_date = me.DateTimeField(required=False)
     current_action = me.StringField()
