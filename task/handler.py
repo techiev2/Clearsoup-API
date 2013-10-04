@@ -5,9 +5,12 @@ Created on 23-Aug-2013
 '''
 import json
 from tornado.web import HTTPError
+from mongoengine import Q
 from mongoengine.errors import ValidationError
 
+
 from requires.base import BaseHandler, authenticated, validate_path_arg
+from datamodels.user import User
 from datamodels.project import Project
 from datamodels.story import Story
 from datamodels.task import Task
@@ -36,8 +39,26 @@ class TaskHandler(BaseHandler):
                     self.data[k] = millisecondToDatetime(self.data[k])
             else:
                 self.data.pop('estimated_completion_date')
+            if 'estimated_effort' in self.data.keys() and\
+             self.data['estimated_effort']:
+                self.data['estimated_effort'] = int(
+                                                self.data['estimated_effort'])
+            else:
+                self.data.pop('estimated_effort')
             self.data['project'] = self.get_project_object(
                                                    self.data['projectId'])
+            if 'assigned_to' in self.data.keys() and\
+                self.data['assigned_to']:
+                try:
+                    user = User.objects.get(Q(username=self.data['assigned_to'])|Q(
+                                            email=self.data['assigned_to']))
+                    if user not in self.data['project'].members:
+                        raise HTTPError(404, **{'reason': 'User not in project.'})
+                except User.DoesNotExist:
+                    raise HTTPError(404, **{'reason': 'User not in project.'})
+                self.data['assigned_to'] = user
+            else:
+                self.data.pop('assigned_to')
             self.data['story'] = self.get_story_object(
                                                project=self.data['project'],
                                                sequence=self.data['storyId'])
