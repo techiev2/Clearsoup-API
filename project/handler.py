@@ -104,7 +104,8 @@ class ProjectHandler(BaseHandler):
         else:
             # Check if we are returning a list of projects for
             # the logged in user
-            projects = Project.objects(members=self.current_user)
+            projects = Project.objects(members=self.current_user
+                                       ).order_by('created_on')
             response['projects'] = []
             for p in projects:                
                 response['projects'].append(p.to_json())
