@@ -59,7 +59,7 @@ class Task(me.Document):
     sequence = me.IntField(unique_with=['project'], required=True)
     title = me.StringField(max_length=128)
     description = me.StringField(max_length=500)
-    assigned_to = me.ReferenceField('User')
+    assigned_to = me.ReferenceField('User', dbref=True)
     estimated_effort = me.IntField()
     logged_effort = me.IntField()
     estimated_completion_date = me.DateTimeField(required=False)
@@ -74,8 +74,8 @@ class Task(me.Document):
     
     created_at = me.DateTimeField(default=datetime.utcnow)
     updated_at = me.DateTimeField(default=datetime.utcnow)
-    created_by = me.ReferenceField('User', required=False)
-    updated_by = me.ReferenceField('User', required=False)
+    created_by = me.ReferenceField('User', required=False, dbref=True)
+    updated_by = me.ReferenceField('User', required=False, dbref=True)
     is_active = me.BooleanField(default=True)
     is_pmo = me.BooleanField(default=False)
 
