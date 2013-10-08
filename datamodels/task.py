@@ -122,6 +122,8 @@ class Task(me.Document):
             raise ValidationError('Title exceeds 64 characters')
         if document.description and len(document.description) > 500:
             raise ValidationError('Description exceeds 500 characters')
+        if document.estimated_effort and (document.estimated_effort.bit_length() // 8) > 7:
+            raise ValidationError('Too long effort.')
 
     @classmethod
     def post_save(cls, sender, document, **kwargs):
