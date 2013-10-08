@@ -16,6 +16,7 @@ from datamodels.project import Project
 from datamodels.story import Story
 from datamodels.task import Task
 from datamodels.permission import ProjectPermission
+from datamodels.update import TaskUpdate
 from utils.app import millisecondToDatetime
 from utils.dumpers import json_dumper
 from requires.settings import PROJECT_PERMISSIONS
@@ -132,7 +133,7 @@ class TaskHandler(BaseHandler):
                     Task.objects.get(sequence=int(task),
                                       project=project)
                 except Task.DoesNotExist:
-                    msg = 'Task story sequences'
+                    msg = 'Invalid task sequences'
                     raise HTTPError(500, **{'reason':msg})
             if id == len(tasks) - 1: flag = True
         return flag 
@@ -216,6 +217,159 @@ class TaskHandler(BaseHandler):
                             raise HTTPError(500, **{'reason':self.error_message(error)})
                     response = {'message': 'Successfully deleted.',
                                 'status': 200}
+            else:
+                msg = 'Not authorized to delete task of this project'
+                raise HTTPError(500, **{'reason':msg})
+        self.finish(json.dumps(response))
+
+
+class TaskCommentHandler(BaseHandler):
+    '''
+        taskId is parent task id.
+    '''
+
+    SUPPORTED_METHODS = ('GET', 'POST', 'PUT', 'DELETE')
+    REQUIRED_FIELDS   = {
+        'GET': ('taskId', ),
+        'POST': ('projectId','taskId', 'text'),
+        'PUT': ('projectId', 'taskId','text'),
+        'DELETE' : ('taskCommentId',),
+        }
+    data = {}
+    
+    def clean_request(self):
+        if self.request.method == 'PUT':
+            self.data['project'] = self.get_project_object(
+                                                   self.data['projectId'])
+            self.data['task'] = self.get_task_object(self.data['project'],
+                                                       self.data['taskId'])
+            [self.data.pop(key) for key in self.data.keys()
+                if key not in TaskUpdate._fields.keys()]
+            self.data['created_by'] = self.current_user
+        self.data['updated_by'] = self.current_user
+
+    def get_project_object(self, project_id=None, permalink=None):
+        if not project_id and not permalink:
+            self.send_error(404)
+        if project_id:
+            try:
+                project = Project.get_project_object(sequence=project_id)
+                if self.current_user not in project.members:
+                    self.send_error(404)
+            except ValidationError, error:
+                raise HTTPError(404, **{'reason': self.error_message(error)})
+        elif permalink:
+            try:
+                project = Project.objects.get(
+                            permalink__iexact=permalink,
+                        )
+                if not self.current_user in project.members:
+                    raise HTTPError(403)
+            except ValidationError, error:
+                raise HTTPError(404, **{'reason': self.error_message(error)})
+        return project
+
+    def get_task_object(self, project=None, sequence=None):
+        task = None
+        if sequence:
+            try:
+                task = Task.objects.get(project=project,sequence=sequence,
+                                        is_active=True)
+            except Task.DoesNotExist:
+                pass
+        return task
+
+    @authenticated
+    def get(self,*args, **kwargs):
+        '''
+            taskId will be that of a parent task.
+            This handler will return comments of a task which is always tied
+            up to a parent task.
+        '''
+        project_id = self.get_argument('projectId', None)
+        task_id = self.get_argument('taskId', None)
+        owner = self.get_argument('owner', None)
+        project_name = self.get_argument('project_name', None)
+        project = None
+        if project_id:
+            project = self.get_valid_project(project_id)
+        elif owner and project_name:
+            permalink = owner + '/' + project_name
+            project = self.get_project_object(project_id=None,
+                                          permalink=permalink)
+        else:
+            self.send_error(400)
+        response = {}
+        task = self.get_task_object(project, task_id)
+        if not task:
+            raise HTTPError(404, **{'reason': 'Task not found'})
+        else:
+            response['task'] = task.to_json()
+            response['task_comments'] = json_dumper(
+                                list(TaskUpdate.objects.filter(task=task,
+                                                              is_active=True)))
+        self.finish(json.dumps(response))
+
+    @authenticated
+    def post(self, *args, **kwargs):
+        #TBD
+        project_id = self.get_argument('projectId', None)
+        task_id = self.get_argument('taskId',None)
+        response = {}
+        if project_id:
+            project = self.get_project_object(project_id)
+            if task_id:
+                task = self.get_task_object(project=project, sequence=task_id)
+                if 'state' in self.data.keys() and self.data['state']:
+                    task.task_state_transition(data=self.data,
+                                               user=self.current_user)
+                
+                # update a task
+        self.finish(json.dumps(response))
+
+    @authenticated
+    def put(self, *args, **kwargs):
+        self.clean_request()
+        task_update = TaskUpdate(**self.data)
+        try:
+            task_update.save(validate=True, clean=True)
+        except ValidationError, error:
+            raise HTTPError(500, **{'reason':self.error_message(error)})
+        self.write(task_update.to_json())
+
+    @authenticated
+    def delete(self, *args, **kwargs):
+        '''
+        In case of comments and update deletion will be a single operation not
+        bulk.
+        '''
+        
+        project_id = self.get_argument('projectId', None)
+        project_permalink = self.get_argument('project_permalink', None)
+        taskCommentId = self.get_arguments('taskCommentId', None)
+        response = {}
+        project = None
+        if not project_id or not project_permalink:
+            self.send_error(404)
+        project = self.get_project_object(project_id=project_id,
+                                              permalink=project_permalink)
+        if taskCommentId:
+            permission = None
+            try:
+                permission = ProjectPermission.objects.get(project=project,
+                                                       user=self.current_user)
+            except ProjectPermission.DoesNotExist:
+                msg = 'Not authorized to delete tasks of this project'
+                raise HTTPError(500, **{'reason':msg})
+            if self.check_permission(permission):
+                try:
+                    task_update = TaskUpdate.objects.get(id=taskCommentId,
+                                              is_active=True)
+                    task_update.update(set__is_active=False)
+                except TaskUpdate.DoesNotExist, error:
+                    raise HTTPError(500, **{'reason':self.error_message(error)})
+                response = {'message': 'Successfully deleted.',
+                            'status': 200}
             else:
                 msg = 'Not authorized to delete task of this project'
                 raise HTTPError(500, **{'reason':msg})
