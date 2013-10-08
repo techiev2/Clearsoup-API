@@ -1,4 +1,5 @@
 import sys
+from bson.json_util import default
 sys.dont_write_bytecode = True
 
 import mongoengine as me
@@ -63,9 +64,24 @@ class TaskUpdate(me.Document):
     # Fields
     project = me.ReferenceField('Project', required=True)
     task = me.ReferenceField('Task', required=True)
-    text = me.StringField(max_length=140, required=True, regex=UPDATE_REGEX)
+    text = me.StringField(max_length=140, required=True)
+    is_active = me.BooleanField(default=True)
     mentions = me.ListField(required=False)
     hashtags = me.ListField(required=False)
+
+
+    @classmethod
+    def pre_save(cls, sender, document, **kwargs):
+        '''
+            validating max length and mentioned user
+        '''
+        mentions = re.findall(MENTION_REGEX, document.text)
+        if len(mentions) > 0:
+            document.mentions = [mention[1:] for mention in mentions]
+        if document.created_by not in document.project.members:
+            raise ValidationError('You are not a member of this project')
+        if len(document.text) > 140:
+            raise ValidationError('Update exceeds 140 characters')
 
     def save(self, *args, **kwargs):
         # Extract list of mentions and hashtags
@@ -82,4 +98,4 @@ class TaskUpdate(me.Document):
 
 
 signals.pre_save.connect(Update.pre_save, sender=Update)
-
+signals.pre_save.connect(TaskUpdate.pre_save, sender=Update)
