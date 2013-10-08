@@ -14,7 +14,7 @@ from requires.base import BaseHandler, authenticated, validate_path_arg
 from datamodels.user import User
 from datamodels.project import Project, Sprint
 from datamodels.story import Story
-from datamodels.task import Task
+from datamodels.task import Task, TASK_TYPES
 from datamodels.permission import ProjectPermission
 from datamodels.update import TaskUpdate
 from utils.app import millisecondToDatetime
@@ -151,6 +151,7 @@ class TaskHandler(BaseHandler):
                     raise HTTPError(404, **{'reason': 'Task not found'})
                 else:
                     response['task'] = task.to_json()
+                    response['task_type'] = TASK_TYPES
             else:
                 query = {
                     'project': project,
@@ -317,6 +318,7 @@ class TaskCommentHandler(BaseHandler):
             raise HTTPError(404, **{'reason': 'Task not found'})
         else:
             response['task'] = task.to_json()
+            response['task_type'] = TASK_TYPES
             response['task_comments'] = json_dumper(
                                 list(TaskUpdate.objects.filter(task=task,
                                                               is_active=True)))
