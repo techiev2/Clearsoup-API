@@ -26,7 +26,7 @@ class TaskHandler(BaseHandler):
     
     SUPPORTED_METHODS = ('GET', 'POST', 'PUT', 'DELETE')
     REQUIRED_FIELDS   = {
-        'POST': ('projectId','taskId'),
+        'POST': ('taskId',),
         'PUT': ('projectId', 'title','storyId', 'estimated_completion_date', 
                 'parentTaskId'),
         'DELETE' : ('tasks',),
@@ -150,6 +150,9 @@ class TaskHandler(BaseHandler):
                 if not task:
                     raise HTTPError(404, **{'reason': 'Task not found'})
                 else:
+                    response['events'] = task.current_event()
+                    print task.current_action
+                    response['current'] = task.current_action
                     response['task'] = task.to_json()
                     response['task_type'] = TASK_TYPES
             else:
@@ -171,20 +174,48 @@ class TaskHandler(BaseHandler):
                                 ))
         self.finish(json.dumps(response))
 
+    def validate_post_data(self, data, task):
+        if not data:
+            self.send_error(404)
+        user = None
+        try:
+            user = User.objects.get(username=data['username'])
+        except User.DoesNotExist:
+            raise HTTPError(404, **{'reason': 'User Not Found'})
+        if user not in task.project.members:
+            raise HTTPError(404, **{'reason': 'User Not Found'})
+        self.data['username'] = user
+
     @authenticated
     def post(self, *args, **kwargs):
-        project_id = self.get_argument('projectId', None)
+        print 191
         task_id = self.get_argument('taskId',None)
+        project_id = self.get_argument('projectId', None)
+        project_permalink = self.get_argument('project_permalink', None)
         response = {}
+        project = None
         if project_id:
-            project = self.get_project_object(project_id)
-            if task_id:
-                task = self.get_task_object(project=project, sequence=task_id)
-                if 'state' in self.data.keys() and self.data['state']:
-                    task.task_state_transition(data=self.data,
-                                               user=self.current_user)
-                
-                # update a task
+            project = self.get_project_object(project_id=project_id,
+                                              permalink=None)
+        elif project_permalink:
+            project = self.get_project_object(project_id=None,
+                                              permalink=project_permalink)
+        task = self.get_task_object(project=project, sequence=task_id)
+        if 'event' in self.data.keys() and self.data['event']:
+            self.validate_post_data(self.data, task)
+            task.task_state_transition(data=self.data,
+                                       user=self.current_user)
+        if self.data['logged_effort']:
+            if not task.logged_effort:
+                logged_effort = int(self.data['logged_effort'])
+            else:
+                logged_effort = task.logged_effort + int(logged_effort)
+            task.update(set__logged_effort=logged_effort)
+            #projectmetadata.update_metadata(task)
+        # update a task
+        response['events'] = task.current_event()
+        response['current'] = task._state_machine.current
+        response['task'] = task.to_json()
         self.finish(json.dumps(response))
 
     @authenticated
@@ -193,6 +224,9 @@ class TaskHandler(BaseHandler):
         task = Task(**self.data)
         try:
             task.save(validate=True, clean=True)
+            print 226
+            print task.current_action
+            #projectmetadata.update_metadata(task)
         except ValidationError, error:
             raise HTTPError(500, **{'reason':self.error_message(error)})
         self.write(task.to_json())
