@@ -77,8 +77,10 @@ class UpdateHandler(BaseHandler):
         # Retrieve updates
         updates = None
         try:
-            updates = Update.objects(project=project).order_by('-id')
-        except Exception:
+            updates = Update.objects(project=project)\
+                .order_by('-id').exclude('project')[self._limit_from:self._limit_to]
+        except Exception, e:
+            print e
             raise HTTPError(404)
 
         if not updates:

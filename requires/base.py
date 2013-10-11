@@ -60,6 +60,9 @@ class BaseHandler(tornado.web.RequestHandler):
                 method in self.REQUIRED_FIELDS):
             self.validate_required_fields(self.REQUIRED_FIELDS[method])
 
+        # Get pagination parameters
+        self._limit_from = int(self.get_argument('limit_from', 0))
+        self._limit_to = int(self.get_argument('limit_to', 100))
 
     def validate_required_fields(self, required_fields):
         fields = self.request.arguments
