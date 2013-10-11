@@ -6,12 +6,13 @@ Created on 12-Aug-2013
 
 import sys
 from datetime import datetime
-from fysom import Fysom
+from fysom import Fysom, FysomError
 
 import mongoengine as me
 from mongoengine import signals
 from mongoengine import ValidationError
 
+from datamodels.user import User
 from datamodels.story import Story
 from datamodels.project import Project
 from utils.dumpers import json_dumper
@@ -27,6 +28,7 @@ states = {
         'initial': 'New',
         'events': [
             { 'name': 'assign', 'src': 'New', 'dst': 'Pending' },
+            { 'name': 'reassign', 'src': 'InProgress', 'dst': 'Pending' },
             { 'name': 'start', 'src': 'Pending', 'dst': 'InProgress' },
             { 'name': 'close', 'src': 'InProgress', 'dst': 'Closed' }
         ]
@@ -81,16 +83,44 @@ class Task(me.Document):
 
     def __init__(self, *args, **kwargs):
         super(Task, self).__init__( *args, **kwargs)
-        self._state = Fysom(states['default'])
+#        self._state = Fysom(states['default'])
 
     def __str__(self):
         return self.title
 
-#    def task_state_transition(self, data=None, user=None):
-#        state = data['state']
-#        if state == 'assign'
-#        self.update(set__current_action)
-        
+    def next_states(self, current_state):
+        pass
+    
+    
+    def task_state_transition(self, data=None, user=None):
+        fysom_obj = self.state_machine
+        event = data['event']
+        if event in ['assign', 'accept', 'reassign']:
+            try:
+                if event == 'reassign':
+                    self._state_machine.reassign()
+                else:
+                    self._state_machine.assign()
+                self.update(set__assigned_to=data['username'],
+                            set__updated_at=datetime.utcnow(),
+                            set__updated_by=user)
+            except FysomError:
+                raise ValidationError('This operation is not allowed')
+        elif event == 'close':
+            try:
+                self._state_machine.close()
+                self.update(set__updated_at=datetime.utcnow(),
+                            set__updated_by=user)
+            except FysomError:
+                raise ValidationError('This operation is not allowed')
+        elif event == 'start':
+            try:
+                self._state_machine.reassign()
+                self.update(set__updated_at=datetime.utcnow(),
+                            set__updated_by=user)
+            except FysomError:
+                raise ValidationError('This operation is not allowed')
+
     def clean(self):
         tasks = Task.objects.filter(title=self.title,
                                     project=self.project,
@@ -138,6 +168,52 @@ class Task(me.Document):
             document.members = [document.created_by]
             document.update(set__members=document.members)
 
+    def validate(self, *args, **kwargs):
+        try:
+            if hasattr(self, "_state_machine"):
+                delattr(self, "_state_machine")
+            super(Task, self).validate()
+        except Exception, e:
+            if e.message.find("_dynamic_fields") != -1 or\
+                e.message.find("_data") != -1:
+                print '_dynamic_fields error passed'
+            else:
+                raise e
+
+    @property
+    def state_machine(self):
+        if not hasattr(self, "_state_machine"):
+            self._state_machine = Fysom(states['default'])
+            # We probably need to store sm.current (which is the current state)
+            # and/or current_action index in the db so that when we initialize
+            # the object, we just have to set it to the current_state
+            self._state_machine.current_action = self.current_action
+            self._state_machine.onchangestate = self.task_on_state_change
+            self._state_machine.next = self.task_next_state
+        return self._state_machine
+
+    def task_on_state_change(self, e):
+        print e.event
+        print 'Changing task from ' + e.src + ' to ' + e.dst
+        self.update(set__current_action=e.dst)
+
+    def task_next_state(self):
+        self._state_machine.current_action += 1
+        action = states['default']['events'][self._state_machine.current_action]['name']
+        if hasattr(self.state_machine, action):
+            getattr(self.state_machine, action)()
+
+    def current_event(self):
+        '''
+            return a list of event based on current state of the task.
+        '''
+        ev = []
+        for event, value in self.state_machine._map.iteritems():
+            if self.state_machine.current in value.keys():
+                ev.append(event)
+        if not self.assigned_to: ev.append('accept')
+        return ev
+    
     def save(self, *args, **kwargs):
         '''
             call save only in case of project PUT.
