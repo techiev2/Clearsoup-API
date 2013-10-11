@@ -8,7 +8,7 @@ import re
 from mongoengine.base import ValidationError
 from mongoengine import signals
 from datetime import datetime
-#from utils.dumpers import json_dumper
+from utils.dumpers import json_dumper
 
 MENTION_REGEX = r'@[A-Za-z0-9_.-]+'
 HASHTAG_REGEX = r'#[A-Za-z0-9_.-]+'
@@ -96,6 +96,8 @@ class TaskUpdate(me.Document):
             self.project.update(set__hashtags=set(self.project.hashtags))
         super(TaskUpdate, self).save(*args, **kwargs)
 
+    def to_json(self, fields=None, exclude=None):
+        return json_dumper(self, fields, exclude)
 
 signals.pre_save.connect(Update.pre_save, sender=Update)
 signals.pre_save.connect(TaskUpdate.pre_save, sender=Update)
