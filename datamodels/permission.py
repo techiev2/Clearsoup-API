@@ -15,6 +15,7 @@ from datamodels.user import User
 from datamodels.project import Project
 from utils.dumpers import json_dumper
 
+permission_map = {'PM': 2047, 'DEV': 2016, 'UI':224, 'TEST': 248, "Admin": 2047}
 
 class ProjectPermission(me.Document):
     
@@ -24,9 +25,10 @@ class ProjectPermission(me.Document):
     2047 as there are 11 different privilege.
     '''
     # edit fields will include deletion of the entity
-    user = me.ReferenceField('User', required=True)
-    project = me.ReferenceField('Project', required=True)
+    user = me.ReferenceField('User', required=True, dbref=True)
+    project = me.ReferenceField('Project', required=True, dbref=True)
     map = me.IntField(default=0)
+    role = me.StringField()
 
     # testBit() returns a nonzero result, 2**offset, if the bit at 'offset' is one.
     @classmethod
