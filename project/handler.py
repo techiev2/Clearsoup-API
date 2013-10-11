@@ -130,7 +130,8 @@ class ProjectHandler(BaseHandler):
     def set_user_permission(self, project):
         p = ProjectPermission(project=project,
                           user=self.current_user,
-                          map=2047)
+                          map=2047,
+                          role="Admin")
         p.save()
 
     @authenticated
