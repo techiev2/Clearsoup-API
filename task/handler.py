@@ -63,8 +63,12 @@ class TaskHandler(BaseHandler):
                 except User.DoesNotExist:
                     raise HTTPError(404, **{'reason': 'User not in project.'})
                 self.data['assigned_to'] = user
+                self.data['current_action'] = 'start'
+                self.data['current_state'] = 'Pending'
             else:
                 self.data.pop('assigned_to')
+                self.data['current_action'] = 'assign'
+                self.data['current_state'] = 'New'
             self.data['story'] = self.get_story_object(
                                                project=self.data['project'],
                                                sequence=self.data['storyId'])
@@ -150,9 +154,8 @@ class TaskHandler(BaseHandler):
                 if not task:
                     raise HTTPError(404, **{'reason': 'Task not found'})
                 else:
-                    response['events'] = task.current_event()
-                    print task.current_action
-                    response['current'] = task.current_action
+                    response['events'] = task.next_events()
+                    response['current'] = task._state_machine.current
                     response['task'] = task.to_json()
                     response['task_type'] = TASK_TYPES
             else:
@@ -175,6 +178,9 @@ class TaskHandler(BaseHandler):
         self.finish(json.dumps(response))
 
     def validate_post_data(self, data, task):
+        '''
+            TB made generic.
+        '''
         if not data:
             self.send_error(404)
         user = None
@@ -186,9 +192,23 @@ class TaskHandler(BaseHandler):
             raise HTTPError(404, **{'reason': 'User Not Found'})
         self.data['username'] = user
 
+        pat = "^-?[0-9]+$"
+        if 'logged_effort' in data.keys() and data['logged_effort']:
+            val = re.findall(pat , data['logged_effort'])
+            if not val:
+                raise HTTPError(404, **{'reason': 'Efforts should be only in integers.'})
+            
+        if 'estimated_effort' in data.keys() and data['estimated_effort']:
+            val = re.findall(pat , data['estimated_effort'])
+            if not val:
+                raise HTTPError(404, **{'reason': 'Efforts should be only in integers.'})
+        
+        if task.assigned_to and task.assigned_to != self.current_user:
+            raise HTTPError(404, **{'reason': 'You were not assigned this task'})
+
+
     @authenticated
     def post(self, *args, **kwargs):
-        print 191
         task_id = self.get_argument('taskId',None)
         project_id = self.get_argument('projectId', None)
         project_permalink = self.get_argument('project_permalink', None)
@@ -209,11 +229,13 @@ class TaskHandler(BaseHandler):
             if not task.logged_effort:
                 logged_effort = int(self.data['logged_effort'])
             else:
-                logged_effort = task.logged_effort + int(logged_effort)
+                logged_effort = task.logged_effort + int(self.data['logged_effort'])
             task.update(set__logged_effort=logged_effort)
+        if 'estimated_effort' in self.data.keys() and self.data['estimated_effort']:
+            estimated_effort = int(self.data['estimated_effort'])
+            task.update(set__estimated_effort=estimated_effort)
             #projectmetadata.update_metadata(task)
-        # update a task
-        response['events'] = task.current_event()
+        response['events'] = task.next_events()
         response['current'] = task._state_machine.current
         response['task'] = task.to_json()
         self.finish(json.dumps(response))
@@ -224,8 +246,6 @@ class TaskHandler(BaseHandler):
         task = Task(**self.data)
         try:
             task.save(validate=True, clean=True)
-            print 226
-            print task.current_action
             #projectmetadata.update_metadata(task)
         except ValidationError, error:
             raise HTTPError(500, **{'reason':self.error_message(error)})
