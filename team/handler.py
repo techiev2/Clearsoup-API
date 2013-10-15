@@ -39,7 +39,7 @@ class TeamHandler(BaseHandler):
                                              'role': each['role']})
                 self.data['new_members'].append(user)
             except User.DoesNotExist:
-                raise ValidationError(each['email'] + 'not found ')
+                raise HTTPError(404, **{'reason': each['email'] + ' not found '})
 
     def get_project_object(self, project_id=None, permalink=None):
         if not project_id and not permalink:
