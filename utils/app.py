@@ -5,6 +5,7 @@ import urllib
 from datetime import datetime
 from mongoengine import Q
 
+TWEET_REGEX = r'[@|#][A-Za-z0-9_.-]+'
 
 def serialize(data, pattern=None, keysplit=None):
     '''
@@ -33,3 +34,7 @@ def millisecondToDatetime(millisecond):
 
 def slugify(text):
     return re.sub(r'\W+', '-', text.lower())
+
+def linkifyTweet(text):
+    #hash_or_at = re.findall(TWEET_REGEX, text)
+    return re.sub(r'([@|#]+[A-Za-z0-9_.-]+)', r'<a href="#">\1</a>', text)

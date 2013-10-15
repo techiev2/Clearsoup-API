@@ -10,7 +10,7 @@ from user import User
 # Mention, Invite, Automated, Other
 # This will be useful to render custom notification templates
 # in the future
-NOTIFICATION_TYPES = ['M','I','A','O'] 
+NOTIFICATION_TYPES = ['M','I','A','O']
 
 class Notification(me.Document):
     # Meta
@@ -19,27 +19,53 @@ class Notification(me.Document):
     # Fields
     notification_type = me.StringField(choices=NOTIFICATION_TYPES, required=True)
     # A notification need not be initiated by anyone, but if it
-    # is, store it in from_user
-    from_user = me.ReferenceField('User', required=False)
+    # is, store it in from_user (as in mentions)
+    from_user = me.ReferenceField('User', required=False, dbref=True)
     # But who the notification is for is mandatory
-    for_user = me.ReferenceField('User', required=True, dbref=True)
+    for_user = me.ReferenceField('User', required=True)
     text = me.StringField(max_length=500, required=False)
     is_read = me.BooleanField(default=False)
+
+    def __str__(self):
+        return self.notification_type
 
 
 class NotificationManager:
     @staticmethod
-    def createNotification(notification_type="O", for_user, from_user):
-        if not mentioned_user:
+    def createNotification(for_user, from_user=None, notification_type="O", text=None):
+        if not for_user:
             return False
-        
+
         notification = Notification()
         notification.notification_type = notification_type[:1].upper()
+        notification.text = text
 
         if not isinstance(for_user, User):
             try:
                 for_user = User.objects.get(username=for_user)
-                notification.for_user = for_user
-            except pass
+            except User.DoesNotExist:
+                raise me.ValidationError('Notification cannot be created if user is unknown')
 
-        notification.save()
+        notification.for_user = for_user
+        notification.from_user = from_user
+        try:
+            notification.save()
+            return notification
+        except:
+            return None
+
+    @staticmethod
+    def fetchNotificationForUser(user):
+        if not user:
+            return None
+
+        notifications = Notification.objects(
+            for_user=user,
+            is_read=False
+            ).order_by('-id')
+
+        return notifications
+
+    @staticmethod
+    def markAsRead(user):
+        Notification.objects(for_user=user).update(set__is_read=True)
