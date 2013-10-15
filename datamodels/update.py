@@ -10,6 +10,8 @@ from mongoengine import signals
 from datetime import datetime
 from utils.dumpers import json_dumper
 
+from datamodels.notification import NotificationManager
+
 MENTION_REGEX = r'@[A-Za-z0-9_.-]+'
 HASHTAG_REGEX = r'#[A-Za-z0-9_.-]+'
 UPDATE_REGEX = '^[a-zA-Z0-9-_,;.\?\/\s]*$'
@@ -37,6 +39,20 @@ class Update(me.Document):
             raise ValidationError('You are not a member of this project')
         if len(document.text) > 140:
             raise ValidationError('Update exceeds 140 characters')
+
+
+    @classmethod
+    def post_save(cls, sender, document, **kwargs):
+        if len(document.mentions) > 0:
+            for mentioned_user in document.mentions:
+                try:
+                    NotificationManager.createNotification(
+                        for_user=mentioned_user,
+                        from_user=document.created_by,
+                        notification_type='M',
+                        text=document.text
+                        )
+                except ValidationError: pass
 
 
     def save(self, *args, **kwargs):
@@ -101,3 +117,7 @@ class TaskUpdate(me.Document):
 
 signals.pre_save.connect(Update.pre_save, sender=Update)
 signals.pre_save.connect(TaskUpdate.pre_save, sender=Update)
+
+# Post save for update to create the necessary notifications
+# for the user(s) mentioned in the update
+signals.post_save.connect(Update.post_save, sender=Update)
