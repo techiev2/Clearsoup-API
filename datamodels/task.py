@@ -76,7 +76,7 @@ class Task(me.Document):
     parent_task = me.ReferenceField('self', required=False)
     child_tasks = [me.ReferenceField('self', required=False)]
     project = me.ReferenceField('Project', required=True, dbref=True)
-    story = me.ReferenceField('Story', required=True, dbref=True)
+    story = me.ReferenceField('Story', dbref=True)
     
     created_at = me.DateTimeField(default=datetime.utcnow)
     updated_at = me.DateTimeField(default=datetime.utcnow)
