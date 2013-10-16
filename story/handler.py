@@ -96,6 +96,7 @@ class StoryHandler(BaseHandler):
         project_id = self.get_argument('projectId', None)
         owner = self.get_argument('owner', None)
         project_name = self.get_argument('project_name', None)
+        is_pmo = self.get_argument('is_pmo', False)
         response = {}
         if project_id:
             project = self.get_valid_project(project_id)
@@ -104,7 +105,7 @@ class StoryHandler(BaseHandler):
             project = self.get_valid_project(project_id, permalink)
         else:
             self.send_error(400)
-        if project and story_id:
+        if project and story_id and not is_pmo:
             try:
                 story = Story.objects.get(sequence=int(story_id),
                                               project=project,
@@ -114,6 +115,12 @@ class StoryHandler(BaseHandler):
                 response['task_type'] = TASK_TYPES
             except Story.DoesNotExist, error:
                 raise HTTPError(500, **{'reason':self.error_message(error)})
+        elif is_pmo and project:
+            pmo_tasks = Task.objects.filter(project=project,
+                                            is_active=True,
+                                            is_pmo=True)
+            response['tasks'] = json_dumper(list(pmo_tasks))
+            response['task_type'] = TASK_TYPES
         elif not story_id and project:
                 response = json_dumper(Story.objects.filter(project=project))
         else:

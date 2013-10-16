@@ -30,7 +30,8 @@ states = {
             { 'name': 'assign', 'src': 'New', 'dst': 'Pending' },
             { 'name': 'reassign', 'src': 'InProgress', 'dst': 'Pending' },
             { 'name': 'start', 'src': 'Pending', 'dst': 'InProgress' },
-            { 'name': 'close', 'src': 'InProgress', 'dst': 'Closed' }
+            { 'name': 'close', 'src': 'InProgress', 'dst': 'Closed' },
+            { 'name': 'restart', 'src': 'Closed', 'dst': 'New' }
         ]
     },
     'review': {
@@ -55,6 +56,8 @@ class Task(me.Document):
     Since multiple inheritance in python is kind of a gray area, we
     are avoiding it and instead instantiating a state property which
     holds the state machine, its properties and methods
+    
+    current_action is the state such as New,  Pending, Progress
     """
     
     task_type = me.StringField(choices=TASK_TYPES, required=True)
@@ -66,13 +69,14 @@ class Task(me.Document):
     logged_effort = me.IntField()
     estimated_completion_date = me.DateTimeField(required=False)
     actual_completion_date = me.DateTimeField(required=False)
-    current_action = me.StringField()
+    current_action = me.StringField() # assign, start
+    current_state = me.StringField()# New Pending
     members = me.ListField(me.ReferenceField('User', dbref=True))
     # Either parent task or child tasks
     parent_task = me.ReferenceField('self', required=False)
     child_tasks = [me.ReferenceField('self', required=False)]
     project = me.ReferenceField('Project', required=True, dbref=True)
-    story = me.ReferenceField('Story', required=True, dbref=True)
+    story = me.ReferenceField('Story', dbref=True)
     
     created_at = me.DateTimeField(default=datetime.utcnow)
     updated_at = me.DateTimeField(default=datetime.utcnow)
@@ -83,43 +87,11 @@ class Task(me.Document):
 
     def __init__(self, *args, **kwargs):
         super(Task, self).__init__( *args, **kwargs)
-#        self._state = Fysom(states['default'])
+        self._fysom_obj = self.state_machine
 
     def __str__(self):
         return self.title
 
-    def next_states(self, current_state):
-        pass
-    
-    
-    def task_state_transition(self, data=None, user=None):
-        fysom_obj = self.state_machine
-        event = data['event']
-        if event in ['assign', 'accept', 'reassign']:
-            try:
-                if event == 'reassign':
-                    self._state_machine.reassign()
-                else:
-                    self._state_machine.assign()
-                self.update(set__assigned_to=data['username'],
-                            set__updated_at=datetime.utcnow(),
-                            set__updated_by=user)
-            except FysomError:
-                raise ValidationError('This operation is not allowed')
-        elif event == 'close':
-            try:
-                self._state_machine.close()
-                self.update(set__updated_at=datetime.utcnow(),
-                            set__updated_by=user)
-            except FysomError:
-                raise ValidationError('This operation is not allowed')
-        elif event == 'start':
-            try:
-                self._state_machine.reassign()
-                self.update(set__updated_at=datetime.utcnow(),
-                            set__updated_by=user)
-            except FysomError:
-                raise ValidationError('This operation is not allowed')
 
     def clean(self):
         tasks = Task.objects.filter(title=self.title,
@@ -162,8 +134,7 @@ class Task(me.Document):
             2. update members list
         '''
         if document.sequence:
-            document.update(set__sequence=document.sequence,
-                            set__current_action='New')
+            document.update(set__sequence=document.sequence)
         if document.created_by not in document.members:
             document.members = [document.created_by]
             document.update(set__members=document.members)
@@ -185,32 +156,72 @@ class Task(me.Document):
         if not hasattr(self, "_state_machine"):
             self._state_machine = Fysom(states['default'])
             # We probably need to store sm.current (which is the current state)
-            # and/or current_action index in the db so that when we initialize
+            # and/or current_state index in the db so that when we initialize
             # the object, we just have to set it to the current_state
-            self._state_machine.current_action = self.current_action
+            self._state_machine.current = self.current_state
+            self._state_machine.current_state = self.current_state
             self._state_machine.onchangestate = self.task_on_state_change
             self._state_machine.next = self.task_next_state
         return self._state_machine
 
+    def task_state_transition(self, data=None, user=None):
+        '''
+        event is same as action
+        '''
+        fysom_obj = self.state_machine
+        event = data['event']
+        if event in ['assign', 'accept', 'reassign']:
+            try:
+                if event == 'reassign':
+                    self._state_machine.reassign()
+                else:
+                    self._state_machine.assign()
+                self.update(set__assigned_to=data['username'],
+                            set__updated_at=datetime.utcnow(),
+                            set__updated_by=user)
+            except FysomError:
+                raise ValidationError('This operation is not allowed')
+        elif event == 'close':
+            try:
+                self._state_machine.close()
+                self.update(set__updated_at=datetime.utcnow(),
+                            set__updated_by=user)
+            except FysomError:
+                raise ValidationError('This operation is not allowed')
+        elif event == 'start':
+            try:
+                self._state_machine.start()
+                self.update(set__updated_at=datetime.utcnow(),
+                            set__updated_by=user)
+            except FysomError, er:
+                raise ValidationError('This operation is not allowed')
+        elif event == 'restart':
+            try:
+                self._state_machine.restart()
+                self.update(set__updated_at=datetime.utcnow(),
+                            set__updated_by=user)
+            except FysomError, er:
+                raise ValidationError('This operation is not allowed')
+
     def task_on_state_change(self, e):
-        print e.event
-        print 'Changing task from ' + e.src + ' to ' + e.dst
-        self.update(set__current_action=e.dst)
+        self.update(set__current_state=e.dst)
+        self._state_machine.current_state = self.current_state
+        self._state_machine.current = self.current_state
+
 
     def task_next_state(self):
-        self._state_machine.current_action += 1
-        action = states['default']['events'][self._state_machine.current_action]['name']
+        action = states['default']['events'][self._state_machine.current_state]['name']
         if hasattr(self.state_machine, action):
             getattr(self.state_machine, action)()
 
-    def current_event(self):
+    def next_events(self):
         '''
             return a list of event based on current state of the task.
         '''
         ev = []
-        for event, value in self.state_machine._map.iteritems():
-            if self.state_machine.current in value.keys():
-                ev.append(event)
+        for action, value in self._state_machine._map.iteritems():
+            if self._state_machine.current in value.keys():
+                ev.append(action)
         if not self.assigned_to: ev.append('accept')
         return ev
     
