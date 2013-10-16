@@ -195,6 +195,13 @@ class Task(me.Document):
                             set__updated_by=user)
             except FysomError, er:
                 raise ValidationError('This operation is not allowed')
+        elif event == 'restart':
+            try:
+                self._state_machine.restart()
+                self.update(set__updated_at=datetime.utcnow(),
+                            set__updated_by=user)
+            except FysomError, er:
+                raise ValidationError('This operation is not allowed')
 
     def task_on_state_change(self, e):
         self.update(set__current_state=e.dst)
