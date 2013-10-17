@@ -178,6 +178,9 @@ class TaskHandler(BaseHandler):
                                     Task.objects.filter(**query).exclude('project','story')
                                     .order_by('sequence')
                                 ))
+                response['metadata'] = json_dumper(list(
+                                        ProjectMetadata.objects.filter(
+                                       project=project).exclude('project')))
         self.finish(json.dumps(response))
 
     def validate_post_data(self, data, task):
