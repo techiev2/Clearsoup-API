@@ -48,12 +48,12 @@ class NotificationHandler(BaseHandler):
 
         elif self.current_user:
             qParams = {
-                'for_user': self.current_user,
-                'is_read': False
+                'for_user': self.current_user
             }
             last_id = self.get_argument('last_id', None)
             if last_id:
                 qParams['id__gt'] = last_id
+                qParams['is_read'] = False
 
             notifications = Notification.objects(**qParams)\
                 .order_by('-id')[self._limit_from:self._limit_to]
