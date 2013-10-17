@@ -6,6 +6,7 @@ Created on 07-Aug-2013
 
 from tornado.web import HTTPError
 from requires.base import BaseHandler, authenticated
+from datamodels.analytics import ProjectMetadata
 from datamodels.project import Project
 from datamodels.story import Story
 from datamodels.task import Task, TASK_TYPES
@@ -79,6 +80,7 @@ class StoryHandler(BaseHandler):
         story = Story(**self.data)
         try:
             story.save(validate=True, clean=True)
+            ProjectMetadata.update_story_metadata(story)
         except ValidationError, error:
             raise HTTPError(500, **{'reason':self.error_message(error)})
         self.write(story.to_json())
