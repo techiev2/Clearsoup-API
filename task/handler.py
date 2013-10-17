@@ -11,6 +11,7 @@ from mongoengine.errors import ValidationError
 
 
 from requires.base import BaseHandler, authenticated, validate_path_arg
+from datamodels.analytics import ProjectMetadata
 from datamodels.user import User
 from datamodels.project import Project, Sprint
 from datamodels.story import Story
@@ -233,10 +234,10 @@ class TaskHandler(BaseHandler):
             else:
                 logged_effort = task.logged_effort + int(self.data['logged_effort'])
             task.update(set__logged_effort=logged_effort)
+            ProjectMetadata.update_task_metadata(task, self.data['logged_effort'])
         if 'estimated_effort' in self.data.keys() and self.data['estimated_effort']:
             estimated_effort = int(self.data['estimated_effort'])
             task.update(set__estimated_effort=estimated_effort)
-            #projectmetadata.update_metadata(task)
         response['events'] = task.next_events()
         response['current'] = task._state_machine.current
         response['task'] = task.to_json()
@@ -248,7 +249,6 @@ class TaskHandler(BaseHandler):
         task = Task(**self.data)
         try:
             task.save(validate=True, clean=True)
-            #projectmetadata.update_metadata(task)
         except ValidationError, error:
             raise HTTPError(500, **{'reason':self.error_message(error)})
         self.write(task.to_json())
