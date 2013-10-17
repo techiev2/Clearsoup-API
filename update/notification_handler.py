@@ -13,7 +13,7 @@ from utils.dumpers import json_dumper
 
 class NotificationHandler(BaseHandler):
 
-    SUPPORTED_METHODS = ('GET',)
+    SUPPORTED_METHODS = ('GET','POST',)
 
     def get(self, *args, **kwargs):
         '''
@@ -62,6 +62,12 @@ class NotificationHandler(BaseHandler):
 
         self.finish(json.dumps(response))
 
-    # @authenticated
-    # def post(self, *args, **kwargs):
-    #     print NotificationManager.createNotification(for_user=self.current_user)
+    @authenticated
+    def post(self, *args, **kwargs):
+        '''
+        Update all unread notifications as read for the current user
+        '''
+        is_success = NotificationManager.markAsRead(self.current_user)
+        self.write({
+            'is_success': is_success
+            })

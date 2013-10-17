@@ -68,4 +68,8 @@ class NotificationManager:
 
     @staticmethod
     def markAsRead(user):
-        Notification.objects(for_user=user).update(set__is_read=True)
+        try:
+            Notification.objects(for_user=user, is_read=False).update(set__is_read=True)
+            return True
+        except:
+            return False
