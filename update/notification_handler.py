@@ -15,20 +15,51 @@ class NotificationHandler(BaseHandler):
 
     SUPPORTED_METHODS = ('GET',)
 
-    @authenticated
     def get(self, *args, **kwargs):
-        qParams = {
-            'for_user': self.current_user,
-            'is_read': False
-        }
-        last_id = self.get_argument('last_id', None)
-        if last_id:
-            qParams['id__gt'] = last_id
-        
-        notifications = Notification.objects(**qParams)\
-            .order_by('-id')[self._limit_from:self._limit_to]
+        '''
+        Notifications can be fetch in bulk by the websocket
+        so that we need to make multiple API calls for every
+        user. In that case, we expect a multiple params with the
+        key user and the value as user_id, last_notification_id
+        Ex: /notification/?user=1,613434&user=2,8980978907&user=3,707093
+        We will then fetch the notifications for each user, and respond
+        '''
+        response = {}
+        users = self.get_arguments('user', None)
+        '''
+        If we have multiple users, loop through the list, and fetch
+        the notifications for each user
+        '''
+        if users:
+            qParams = {
+                'is_read': False
+            }
+            for user in users:
+                if ',' in user:
+                    user_id, last_notification_id = user.split(',')
+                    qParams['for_user'] = user_id
+                    qParams['id__gt'] = last_notification_id
+                else:
+                    qParams['for_user'] = user
 
-        response = json_dumper(notifications)
+                user_notification = Notification.objects(**qParams)\
+                    .order_by('-id')
+                response[qParams['for_user']] = json_dumper(user_notification)
+
+        elif self.current_user:
+            qParams = {
+                'for_user': self.current_user,
+                'is_read': False
+            }
+            last_id = self.get_argument('last_id', None)
+            if last_id:
+                qParams['id__gt'] = last_id
+
+            notifications = Notification.objects(**qParams)\
+                .order_by('-id')[self._limit_from:self._limit_to]
+
+            response = json_dumper(notifications)
+
         self.finish(json.dumps(response))
 
     # @authenticated

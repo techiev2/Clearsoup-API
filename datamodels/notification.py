@@ -27,7 +27,7 @@ class Notification(me.Document):
     is_read = me.BooleanField(default=False)
 
     def __str__(self):
-        return self.notification_type
+        return "Type: %s for user %s" %(self.notification_type, self.for_user.username)
 
 
 class NotificationManager:
