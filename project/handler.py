@@ -8,6 +8,7 @@ from tornado.web import HTTPError
 from mongoengine import ValidationError, Q
 
 from requires.base import BaseHandler, authenticated, validate_path_arg
+from datamodels.analytics import ProjectMetadata
 from datamodels.project import Project
 from datamodels.organization import Organization
 from datamodels.user import User
@@ -141,6 +142,7 @@ class ProjectHandler(BaseHandler):
         try:
             project.save(validate=True, clean=True)
             self.set_user_permission(project)
+            ProjectMetadata.create_project_metadata(project)
         except ValidationError, error:
             raise HTTPError(500, **{'reason':self.error_message(error)})
         self.write(project.to_json())
