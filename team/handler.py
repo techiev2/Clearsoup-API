@@ -90,6 +90,8 @@ class TeamHandler(BaseHandler):
         response['members'] = []
         for each in self.data['members']:
             new_user = existing_user = None
+            project.members.extend(self.data['new_members'])
+            project.update(set__members=set(project.members))
             try:
                 existing_user = ProjectPermission.objects.get(user=each['user'],
                                               project=project)
@@ -105,8 +107,6 @@ class TeamHandler(BaseHandler):
                 response['members'].append(new_user.to_json())
             elif existing_user:
                 response['members'].append(existing_user.to_json())
-        project.members.extend(self.data['new_members'])
-        project.update(set__members=set(project.members))
         self.write(json_dumper(response))
 
     @authenticated
