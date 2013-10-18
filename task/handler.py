@@ -11,6 +11,7 @@ from mongoengine.errors import ValidationError
 
 
 from requires.base import BaseHandler, authenticated, validate_path_arg
+from datamodels.analytics import ProjectMetadata
 from datamodels.user import User
 from datamodels.project import Project, Sprint
 from datamodels.story import Story
@@ -167,16 +168,24 @@ class TaskHandler(BaseHandler):
                 }
                 # If sprint is set, get the tasks only for that sprint
                 sprint_number = self.get_argument('sprint', None)
+                sprint_metadata = {}
                 if sprint_number:
                     # Get the sprint
                     sprint = Sprint.objects.get(project=project,
                                                 sequence=int(sprint_number))
                     query['story__in'] = sprint.get_stories()
-
+                    
+                    pm = ProjectMetadata.objects.filter(project=project
+                                                ).exclude('project')
+                    if pm:
+                        sprint_metadata = pm[0].metadata[project.permalink][str(sprint_number)]
+                    
                 response['task'] = json_dumper(list(
                                     Task.objects.filter(**query).exclude('project','story')
                                     .order_by('sequence')
                                 ))
+                
+                response['metadata'] = sprint_metadata
         self.finish(json.dumps(response))
 
     def validate_post_data(self, data, task):
@@ -233,10 +242,10 @@ class TaskHandler(BaseHandler):
             else:
                 logged_effort = task.logged_effort + int(self.data['logged_effort'])
             task.update(set__logged_effort=logged_effort)
+            ProjectMetadata.update_task_metadata(task, self.data['logged_effort'])
         if 'estimated_effort' in self.data.keys() and self.data['estimated_effort']:
             estimated_effort = int(self.data['estimated_effort'])
             task.update(set__estimated_effort=estimated_effort)
-            #projectmetadata.update_metadata(task)
         response['events'] = task.next_events()
         response['current'] = task._state_machine.current
         response['task'] = task.to_json()
@@ -248,7 +257,6 @@ class TaskHandler(BaseHandler):
         task = Task(**self.data)
         try:
             task.save(validate=True, clean=True)
-            #projectmetadata.update_metadata(task)
         except ValidationError, error:
             raise HTTPError(500, **{'reason':self.error_message(error)})
         self.write(task.to_json())
