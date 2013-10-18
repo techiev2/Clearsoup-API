@@ -168,19 +168,24 @@ class TaskHandler(BaseHandler):
                 }
                 # If sprint is set, get the tasks only for that sprint
                 sprint_number = self.get_argument('sprint', None)
+                sprint_metadata = {}
                 if sprint_number:
                     # Get the sprint
                     sprint = Sprint.objects.get(project=project,
                                                 sequence=int(sprint_number))
                     query['story__in'] = sprint.get_stories()
-
+                    
+                    pm = ProjectMetadata.objects.filter(project=project
+                                                ).exclude('project')
+                    if pm:
+                        sprint_metadata = pm[0].metadata[project.permalink][str(sprint_number)]
+                    
                 response['task'] = json_dumper(list(
                                     Task.objects.filter(**query).exclude('project','story')
                                     .order_by('sequence')
                                 ))
-                response['metadata'] = json_dumper(list(
-                                        ProjectMetadata.objects.filter(
-                                       project=project).exclude('project')))
+                
+                response['metadata'] = sprint_metadata
         self.finish(json.dumps(response))
 
     def validate_post_data(self, data, task):
