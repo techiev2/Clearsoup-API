@@ -15,6 +15,7 @@ from mongoengine import ValidationError
 from datamodels.user import User
 from datamodels.story import Story
 from datamodels.project import Project
+from datamodels.update import TaskUpdate
 from utils.dumpers import json_dumper
 
 sys.dont_write_bytecode = True
@@ -31,7 +32,7 @@ states = {
             { 'name': 'reassign', 'src': 'InProgress', 'dst': 'Pending' },
             { 'name': 'start', 'src': 'Pending', 'dst': 'InProgress' },
             { 'name': 'close', 'src': 'InProgress', 'dst': 'Closed' },
-            { 'name': 'restart', 'src': 'Closed', 'dst': 'New' }
+            { 'name': 'reopen', 'src': 'Closed', 'dst': 'New' }
         ]
     },
     'review': {
@@ -195,9 +196,9 @@ class Task(me.Document):
                             set__updated_by=user)
             except FysomError, er:
                 raise ValidationError('This operation is not allowed')
-        elif event == 'restart':
+        elif event == 'reopen':
             try:
-                self._state_machine.restart()
+                self._state_machine.reopen()
                 self.update(set__updated_at=datetime.utcnow(),
                             set__updated_by=user)
             except FysomError, er:
@@ -207,6 +208,13 @@ class Task(me.Document):
         self.update(set__current_state=e.dst)
         self._state_machine.current_state = self.current_state
         self._state_machine.current = self.current_state
+        text = 'Changed task from %s to %s' %(e.src, e.dst)
+        task_update = TaskUpdate(task=self,
+                                 project=self.project,
+                                 created_by=self.updated_by,
+                                 updated_by=self.updated_by,
+                                 text=text)
+        task_update.save()
 
 
     def task_next_state(self):
@@ -222,7 +230,7 @@ class Task(me.Document):
         for action, value in self._state_machine._map.iteritems():
             if self._state_machine.current in value.keys():
                 ev.append(action)
-        if not self.assigned_to: ev.append('accept')
+        if not self.assigned_to: ev.append('Assign to yourself')
         return ev
     
     def save(self, *args, **kwargs):
