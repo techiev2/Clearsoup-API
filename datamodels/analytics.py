@@ -22,11 +22,11 @@ class ProjectMetadata(me.Document):
         
         {project_permalink:{sprint: [{story_sequence:[{
                                                         day: 1,
-                                                        worked: 3
+                                                        logged: 3
                                                     },
                                                     {
                                                         day: 2,
-                                                        worked: 6
+                                                        logged: 6
                                                     },]
                                                     
                                     },
@@ -72,10 +72,10 @@ class ProjectMetadata(me.Document):
                 day_work_list = story_dict
                 for each in day_work_list:
                     if each['day'] == day:
-                        if each['worked']:
-                            each['worked'] = int(each['worked']) + int(effort)
+                        if each['logged']:
+                            each['logged'] = int(each['logged']) + int(effort)
                         else:
-                            each['worked'] = effort
+                            each['logged'] = effort
         project_metadata.update(set__metadata=metadata)
 
     @classmethod
@@ -91,7 +91,7 @@ class ProjectMetadata(me.Document):
                 sprint_dict = metadata[story.project.permalink][sprint]
                 sprint_dict.update({str(story.sequence):[]})
                 for day in xrange(story.project.duration):
-                    sprint_dict[str(story.sequence)].append({'day':int(day) + 1, 'worked': 0})
+                    sprint_dict[str(story.sequence)].append({'day':int(day) + 1, 'logged': 0})
         project_metadata.update(set__metadata=metadata)
 
     @classmethod
