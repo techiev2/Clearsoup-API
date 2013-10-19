@@ -35,6 +35,16 @@ def millisecondToDatetime(millisecond):
 def slugify(text):
     return re.sub(r'\W+', '-', text.lower())
 
+def extractMentionOrHash(match):
+    url = ''
+    word = match.group(1)
+    symbol = word[:1]
+    if symbol == '@':
+        url = '/user/{0}/'.format(word[1:])
+    elif symbol == '#':
+        url = '/search/?tag={0}'.format(word[1:])
+    return "<a href='{0}'>{1}</a>".format(url, word)
+
 def linkifyTweet(text):
     #hash_or_at = re.findall(TWEET_REGEX, text)
-    return re.sub(r'([@|#]+[A-Za-z0-9_.-]+)', r'<a href="#">\1</a>', text)
+    return re.sub(r'([@|#]+[A-Za-z0-9_.-]+)', extractMentionOrHash , text)

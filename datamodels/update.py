@@ -11,6 +11,7 @@ from datetime import datetime
 from utils.dumpers import json_dumper
 
 from datamodels.notification import NotificationManager
+from websocket.handlers import send_notifications
 
 MENTION_REGEX = r'@[A-Za-z0-9_.-]+'
 HASHTAG_REGEX = r'#[A-Za-z0-9_.-]+'
@@ -43,17 +44,26 @@ class Update(me.Document):
 
     @classmethod
     def post_save(cls, sender, document, **kwargs):
-        if len(document.mentions) > 0:
-            for mentioned_user in document.mentions:
+        if document.mentions:
+            # A user can be mentioned more than once in the same
+            # message, which is unnecessary repetition. Filter out
+            # the unique
+            mentions = set(document.mentions)
+            notifications = {}
+            for mentioned_user in mentions:
                 try:
-                    NotificationManager.createNotification(
+                    notification = NotificationManager.createNotification(
                         for_user=mentioned_user,
                         from_user=document.created_by,
                         notification_type='M',
                         text=document.text
                         )
+                    notifications[mentioned_user] = notification
                 except ValidationError: pass
-
+            # Now publish the notification to the websocket
+            try:
+                send_notifications(notifications)
+            except: pass
 
     def save(self, *args, **kwargs):
         # Explicitly set the date as mongo(engine|db) seems to

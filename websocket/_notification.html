@@ -1,0 +1,12 @@
+{% from utils.app import linkifyTweet %}
+<li class="notification-item" data-id="{{ notification['id'] }}">
+	{% if notification['from_user'] %}
+		<img class="user-avatar" src="/assets/images/sample-profile-image.png">
+		<div class="content">
+			<h5>{{ notification['from_user']['username'] }}</h5>
+	{% else %}
+		<div class="content">
+	{% end %}
+	<p class="text">{% apply linkifyTweet %}{{ notification['text'] }}{% end %}</p>
+	</div>
+</li>

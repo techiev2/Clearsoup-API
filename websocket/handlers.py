@@ -7,12 +7,13 @@ from tornado.ioloop import IOLoop, PeriodicCallback
 import json
 import datetime
 import time
+import traceback
 
 from datamodels.notification import Notification, NotificationManager
 from datamodels.session import SessionManager
 
 WEBSOCKET_REFRESH_TIMER = 30 * 1000
-WEBSOCKET_PING_TIMER = 60 * 100
+WEBSOCKET_PING_TIMER = 60 * 1000
 # Maintain a list of clients connected
 CLIENTS = dict()
 
@@ -34,21 +35,15 @@ class AppWebSocketHandler(WebSocketHandler):
     def get_id(self):
         return id(self)
 
-    def get_session_key(self):
-        '''
-        Returns a tuple with username, websocket_id
-        '''
+    def get_current_user(self):
         token = self.get_secure_cookie("token", None)
         if token:
             session = SessionManager.loadSession(token)
             if session:
                 user = session.user.username
-                websocket_id = self.get_id()
-                return (user, websocket_id)
-            else:
-                return None
-        else:
-            return None
+                return user
+
+        return None
 
     def open(self):
         '''
@@ -57,15 +52,19 @@ class AppWebSocketHandler(WebSocketHandler):
         this because we need to send out specific updates to specific
         clients and not a broadcast
         '''
-        session_key = self.get_session_key()
-        if session:
+        user = self.current_user
+        if user:
+            websocket_id = self.get_id()
             # Maintain a list of connected sockets
             # The key is a tuple (user, websocket_id)
-            CLIENTS[session_key] = {
+            CLIENTS[(user, websocket_id)] = {
                 'socket': self,
                 'data': {}
             }
-            print "Websocket opened: %d for user %s" % (websocket_id, user)
+            print "User %s connected to websocket" % user
+            # Start ping scheduler if not running
+            if not ping_scheduler._running and CLIENTS:
+                ping_scheduler.start()
 
 
     def on_message(self, message):
@@ -96,10 +95,17 @@ class AppWebSocketHandler(WebSocketHandler):
 
 
     def on_close(self):
-        pass
-        # websocket_id = self.get_id()
-        # print "Websocket closed: %d" % websocket_id
-        # del CLIENTS[websocket_id]
+        websocket_id = self.get_id()
+        # CLIENTS = {k:v for k,v in CLIENTS.iteritems() if k[1] != 1}
+        # Get the key with the websocket_id
+        key = [k for k in CLIENTS.iterkeys() if k[1] == websocket_id]
+        if key:
+            print key[0]
+            del CLIENTS[key[0]]
+            print "User %s disconnected from websocket" % key[0][0]
+        # If no clients, disable scheduler
+        if ping_scheduler._running and not CLIENTS:
+            ping_scheduler.stop()
 
 
 class WebSocketMessage(object):
@@ -125,17 +131,23 @@ class NotificationMessage(WebSocketMessage):
         CLIENTS[self._websocket_id]['data']['last_id'] = last_id
 
 
-def send_notifications():
+def send_notifications(notifications):
     print 'sending notification'
-    if notifications:
-        notifications_html = self.render_string('modules/_notification.html',
-            notifications=notifications)
-        response = {
-            'count': len(notifications),
-            'notifications_html': notifications_html.strip(' \n')
-        }
+    # We are bothered only about sending the notifications
+    # for the users that are active in the websocket
+    for key, value in CLIENTS.iteritems():
+        if key[0] in notifications:
+            socket = value['socket']
+            try:
+                notification_html = socket.render_string('_notification.html',
+                    notification=notifications[key[0]])
+                response = {
+                    'notifications_html': notification_html.strip(' \n')
+                }
+                socket.write_message(json.dumps(response))
+            except Exception, e:
+                print e
 
-        self.write_message(json.dumps(response))
 
 def ping():
     now = time.time()
@@ -148,7 +160,7 @@ def ping():
 
 
 # Websocket scheduler
-websocket_scheduler = PeriodicCallback(send_notifications, WEBSOCKET_REFRESH_TIMER)
+#websocket_scheduler = PeriodicCallback(send_notifications, WEBSOCKET_REFRESH_TIMER)
 #websocket_scheduler.start()
 ping_scheduler = PeriodicCallback(ping, WEBSOCKET_PING_TIMER)
 ping_scheduler.start()
