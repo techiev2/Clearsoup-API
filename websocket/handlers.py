@@ -122,8 +122,12 @@ class NotificationMessage(WebSocketMessage):
         self._type = 'notification'
 
     def process(self, handler, message):
-        if message['action'] == 'update_last_id':
-            self.update_last_id(message['last_id'])
+        if message['action'] == 'markAsRead':
+            is_success = NotificationManager.markAsRead(self.current_user)
+            response = {
+                'is_success': is_success
+            }
+            self.write_message(json.dumps(response))
 
     def update_last_id(self, last_id):
         # CLIENTS
@@ -142,6 +146,7 @@ def send_notifications(notifications):
                 notification_html = socket.render_string('_notification.html',
                     notification=notifications[key[0]])
                 response = {
+                    'message_type': 'notification',
                     'notifications_html': notification_html.strip(' \n')
                 }
                 socket.write_message(json.dumps(response))
