@@ -67,7 +67,7 @@ class TeamHandler(BaseHandler):
         project_id = self.get_argument('projectId', None)
         project = self.get_project_object(project_id=project_id,
                                           permalink=None)
-        members = list(ProjectPermission.objects.filter(project=project))
+        members = list(ProjectPermission.objects.filter(project=project).exclude("project"))
         self.write(json.dumps(json_dumper(members)))
 
     @authenticated
