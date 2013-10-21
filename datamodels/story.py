@@ -14,6 +14,7 @@ from mongoengine.base import ValidationError
 from mongoengine import signals
 
 from datamodels.project import Project, Sprint
+from datamodels.analytics import ProjectMetadata
 from utils.dumpers import json_dumper
 
 TITLE_REGEX = '^[a-zA-Z0-9-_\.]*$'
@@ -115,6 +116,23 @@ class Story(me.Document):
                                     is_active=True).order_by('sequence')
         return tasks
 
+    @classmethod
+    def create_todo(cls, project=None, user=None):
+        # it may be the case that there exist a regular story with name 'TODO'.
+#        probable_todos = Story.objects.filter(project=project,
+#                                             title='TODO')
+        todo_sprint = Sprint.objects.get(project=project,
+                                         sequence=-1)
+        data = {'sprint': todo_sprint,
+                'project': project,
+                'title': 'TODO',
+                'created_by': user,
+                'updated_by': user
+                }
+        story = Story(**data)
+        story.save()
+        story.update(set__sequence=0)
+        ProjectMetadata.update_story_metadata(story)
 
 signals.pre_save.connect(Story.pre_save, sender=Story)
 signals.post_save.connect(Story.post_save, sender=Story)
