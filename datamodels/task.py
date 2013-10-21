@@ -77,14 +77,14 @@ class Task(me.Document):
     parent_task = me.ReferenceField('self', required=False)
     child_tasks = [me.ReferenceField('self', required=False)]
     project = me.ReferenceField('Project', required=True, dbref=True)
-    story = me.ReferenceField('Story', dbref=True)
+    story = me.ReferenceField('Story', required=True, dbref=True)
     
     created_at = me.DateTimeField(default=datetime.utcnow)
     updated_at = me.DateTimeField(default=datetime.utcnow)
     created_by = me.ReferenceField('User', required=False, dbref=True)
     updated_by = me.ReferenceField('User', required=False, dbref=True)
     is_active = me.BooleanField(default=True)
-    is_pmo = me.BooleanField(default=False)
+#    is_pmo = me.BooleanField(default=False)
 
     def __init__(self, *args, **kwargs):
         super(Task, self).__init__( *args, **kwargs)

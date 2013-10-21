@@ -28,7 +28,7 @@ class TaskHandler(BaseHandler):
     SUPPORTED_METHODS = ('GET', 'POST', 'PUT', 'DELETE')
     REQUIRED_FIELDS   = {
         'POST': ('taskId',),
-        'PUT': ('projectId', 'title','is_pmo', 'estimated_completion_date', 
+        'PUT': ('projectId', 'title', 'estimated_completion_date', 
                 'parentTaskId'),
         'DELETE' : ('tasks',),
         }
@@ -70,7 +70,6 @@ class TaskHandler(BaseHandler):
                 self.data.pop('assigned_to')
                 self.data['current_action'] = 'assign'
                 self.data['current_state'] = 'New'
-            if not self.data['is_pmo']:
                 self.data['story'] = self.get_story_object(
                                                project=self.data['project'],
                                                sequence=self.data['storyId'])
@@ -164,7 +163,7 @@ class TaskHandler(BaseHandler):
                 query = {
                     'project': project,
                     'is_active': True,
-                    'is_pmo': False
+#                    'is_pmo': False
                 }
                 # If sprint is set, get the tasks only for that sprint
                 sprint_number = self.get_argument('sprint', None)
