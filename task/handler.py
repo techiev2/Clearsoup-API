@@ -384,7 +384,7 @@ class TaskCommentHandler(BaseHandler):
             response['task_type'] = TASK_TYPES
             response['task_comments'] = json_dumper(
                                 list(TaskUpdate.objects.filter(task=task,
-                                                              is_active=True)))
+                                          is_active=True).order_by('-id')))
         self.finish(json.dumps(response))
 
     @authenticated
@@ -410,6 +410,7 @@ class TaskCommentHandler(BaseHandler):
         task_update = TaskUpdate(**self.data)
         try:
             task_update.save(validate=True, clean=True)
+            task_update.reload()
         except ValidationError, error:
             raise HTTPError(500, **{'reason':self.error_message(error)})
         self.write(task_update.to_json())
