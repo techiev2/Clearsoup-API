@@ -121,6 +121,7 @@ class TaskUpdate(me.Document):
             self.project.hashtags.extend(self.hashtags)
             self.project.update(set__hashtags=set(self.project.hashtags))
         super(TaskUpdate, self).save(*args, **kwargs)
+        self.reload()
 
     def to_json(self, fields=None, exclude=None):
         return json_dumper(self, fields, exclude)

@@ -9,7 +9,7 @@ from datetime import datetime
 
 import mongoengine as me
 from mongoengine import ValidationError
-from datamodels.project import Project
+from datamodels.project import Project, Sprint
 from utils.dumpers import json_dumper
 
 sys.dont_write_bytecode = True
@@ -104,10 +104,9 @@ class ProjectMetadata(me.Document):
 
         permalink = project.permalink
         d = {permalink: {}}
-        for sprint in project.sprints:
-            if sprint != 'Backlog':
-                val = sprint.replace('Sprint ', '')
-                d[permalink].update({val:{}})
+        sprints = Sprint.objects.filter(project=project)
+        for sprint in sprints:
+            d[permalink].update({str(sprint.sequence):{}})
         
         project_metadata = ProjectMetadata(
                                project=project,

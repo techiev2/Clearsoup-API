@@ -9,8 +9,9 @@ from mongoengine import ValidationError, Q
 
 from requires.base import BaseHandler, authenticated, validate_path_arg
 from datamodels.analytics import ProjectMetadata
-from datamodels.project import Project
+from datamodels.project import Project, Sprint
 from datamodels.organization import Organization
+from datamodels.story import Story
 from datamodels.user import User
 from datamodels.permission import ProjectPermission
 from utils.app import millisecondToDatetime
@@ -22,7 +23,7 @@ class ProjectHandler(BaseHandler):
     SUPPORTED_METHODS = ('GET', 'POST', 'PUT', 'DELETE')
     REQUIRED_FIELDS   = {
         'POST': ('projectId',),
-        'PUT': ('title','start_date', 'end_date', 'duration'),
+        'PUT': ('title','start_date', 'end_date'),
         'DELETE' : ('projectId',),
         }
     data = {}
@@ -97,7 +98,6 @@ class ProjectHandler(BaseHandler):
                 response['project'].update({
                     'current_sprint' : project.get_current_sprint().to_json()
                 })
-
             except Project.DoesNotExist:
                 raise HTTPError(404)
 
@@ -143,6 +143,7 @@ class ProjectHandler(BaseHandler):
             project.save(validate=True, clean=True)
             self.set_user_permission(project)
             ProjectMetadata.create_project_metadata(project)
+            Story.create_todo(project, self.current_user)
         except ValidationError, error:
             raise HTTPError(500, **{'reason':self.error_message(error)})
         self.write(project.to_json())

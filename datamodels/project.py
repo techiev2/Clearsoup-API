@@ -139,36 +139,51 @@ class Project(me.Document):
                               end_date=sprint_end_date,
                               created_by=self.created_by,
                               updated_by=self.updated_by)
-            else: # for backlog
+            elif idx == 0: # for backlog
                 try:
                     Sprint.objects.get(sequence=idx, project=self)
                 except Sprint.DoesNotExist:
                     Sprint.objects.create(project=self,
                               created_by=self.created_by,
                               updated_by=self.updated_by)
+        # for todo
+        try:
+            Sprint.objects.get(sequence=-1, project=self)
+        except Sprint.DoesNotExist:
+            Sprint.objects.create(project=self,
+                      created_by=self.created_by,
+                      updated_by=self.updated_by,
+                      sequence=-1,
+                      start_date=self.start_date,
+                      end_date=self.end_date)
 
     def calculate_sprints(self):
-        if not self.duration:
-            self.duration = 7
-            self.update(set__duration=self.duration)
         project_duration = (self.end_date - self.start_date).days
-        sprints = project_duration / self.duration
-        # in case duration is of form 7K + 1, one sprint has to be added
-        difference = project_duration - (self.duration * sprints)
-        
-        if difference > 0 and difference < 7:
-            sprints += 1
-        
-        sprint_list = ['Backlog']
-        sprint_list.extend(['Sprint ' + str(
-                            idx) for idx in range(1, sprints + 1)])
-        self.update(set__sprints=sprint_list)
-        self.create_sprints()
+        if not self.duration:
+            self.duration = project_duration
+            self.update(set__duration=self.duration)
+            sprints = project_duration / self.duration
+            # in case duration is of form 7K + 1, one sprint has to be added
+            self.update(set__sprints=['Sprint -1'])
+            self.create_sprints()
+        else:
+            self.update(set__duration=self.duration)
+            sprints = project_duration / self.duration
+            # in case duration is of form 7K + 1, one sprint has to be added
+            difference = project_duration - (self.duration * sprints)
+            
+            if difference > 0 and difference < 7:
+                sprints += 1
+            sprint_list = ['Backlog']
+            sprint_list.extend(['Sprint ' + str(
+                                idx) for idx in range(1, sprints + 1)])
+            self.update(set__sprints=sprint_list)
+            self.create_sprints()
 
     def get_current_sprint(self):
         now = datetime.utcnow()
         sprints = Sprint.objects.filter(project=self,
-                                       sequence__ne=0,
+                                       sequence__nin=[0, -1],
                                        start_date__lte=now,
                                        end_date__gte=now)
         if len(sprints) == 1:
@@ -179,7 +194,7 @@ class Project(me.Document):
         else:
             curr_sprint = Sprint.objects.get(project=self,
                                             sequence=(
-                                                len(self.sprints)-1))
+                                                len(self.sprints)-2))
         return curr_sprint
 
     @classmethod
