@@ -6,3 +6,4 @@ tornadomail==0.1.2
 PIL
 blinker==1.3
 fysom==1.0.14
+py-bcrypt==0.4
