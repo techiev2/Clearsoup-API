@@ -30,8 +30,8 @@ GEN_PATH = lambda path: os.path.join(os.getcwd(), path)
 
 SETTINGS = {
     'APPS': ['project', 'story','auth', 'core', 'user', 'team',
-             'permission', 'sprint', 'update', 'task',
-             'organization', 'websocket', 'search'
+             'permission', 'sprint', 'update', 'task', 'search',
+             'organization', 'websocket'
     ],
     # Security
     'cookie': 'token',  # Specify the cookie variable name
