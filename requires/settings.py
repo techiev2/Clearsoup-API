@@ -29,8 +29,9 @@ class ClearSoupApp(Application, object):
 GEN_PATH = lambda path: os.path.join(os.getcwd(), path)
 
 SETTINGS = {
-    'APPS':['project', 'story','auth', 'core', 'user', 'team', 'permission',
-            'sprint', 'update', 'task','organization', 'websocket'
+    'APPS': ['project', 'story','auth', 'core', 'user', 'team',
+             'permission', 'sprint', 'update', 'task',
+             'organization', 'websocket', 'search'
     ],
     # Security
     'cookie': 'token',  # Specify the cookie variable name
@@ -42,7 +43,8 @@ SETTINGS = {
     'mongo_port': 8800,
     'mongo_db': 'clearsoup-db',
     'api_root': 'http://localhost:9000/api/',
-    'web_root': 'http://localhost:8000'
+    'web_root': 'http://localhost:8000',
+    'models_package': 'datamodels'
 }
 
 PROJECT_PERMISSIONS = ('can_add_story', 'can_edit_story', 'can_delete_story',
@@ -65,3 +67,4 @@ APP = ClearSoupApp(URLS, **SETTINGS)
 SERVER = HTTPServer(APP)
 LOOP = IOLoop.instance()
 PORT = 9000  # Default port. main.py picks the default from here.
+
