@@ -4,8 +4,9 @@ __author__ = "Sriram Velamur"
 
 import sys
 sys.dont_write_bytecode = True
-from tornado.web import RequestHandler
+#from tornado.web import RequestHandler
 from utils.object import QueryObject
+from requires.base import BaseHandler, authenticated
 from utils.view import BaseView
 import logging
 import re
@@ -16,7 +17,7 @@ sequence_search_matcher = re.compile('[S|T]\d+')
 __all__ = ('SearchController',)
 
 
-class SearchController(RequestHandler):
+class SearchController(BaseHandler):
     """Search view controller"""
 
     def __init__(self, *args, **kwargs):
@@ -36,6 +37,7 @@ class SearchController(RequestHandler):
             'S': 'Story'
         }
 
+    @authenticated
     def get(self, **kwargs):
         """
         HTTP GET request handler method for Clearsoup API search
@@ -61,11 +63,7 @@ class SearchController(RequestHandler):
         meta = {
             'order_by': 'created_at'
         }
-        project = QueryObject(self, 'Project', self.path_kwargs
-        .get('project')) if self.path_kwargs.get('project') \
-            else None
 
-        project = project.result if not project.exception else None
         query = self.path_kwargs.get('query')
 
         is_sequence_search = True if sequence_search_matcher.match(
@@ -96,7 +94,8 @@ class SearchController(RequestHandler):
                 item_json.update({
                     'updates': item_updates.json(
                         fields=('text',),
-                        ref_fields=self.ref_fields)
+                        ref_fields=self.ref_fields),
+                    'type': model[0].upper()
                 })
                 response_data.append(item_json)
 
@@ -118,7 +117,8 @@ class SearchController(RequestHandler):
                     item_json.update({
                         'updates': item_updates.json(
                             fields=('text',),
-                            ref_fields=self.ref_fields)
+                            ref_fields=self.ref_fields),
+                        'type': model_item[0].upper()
                     })
                     response_data.append(item_json)
 
