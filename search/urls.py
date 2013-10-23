@@ -8,8 +8,11 @@ from .handlers import SearchController
 
 __all__ = ('URLS',)
 
-url_str = '/api/(?P<user>[a-zA-Z0-9].*?)/'
-url_str += '(?P<project>[a-zA-Z0-9\_\-].*?)'
-url_str += '/search/(?P<query>.*?)/.*?$'
+url_str = '.*/api/(?P<user>[a-zA-Z0-9].*)/'
+url_str += '(?P<project>[a-zA-Z0-9\_\-].*)'
+url_str += '/search/(?P<query>.*?)/$'
 
-URLS = [('/api/search/(?P<query>.*?)/$', SearchController)]
+#URLS = [('^/api/(?P<user>.*?)/(?P<project>.*?)/search/(?P<query>.*?)/$',
+#         SearchController)]
+
+URLS = [(url_str, SearchController)]

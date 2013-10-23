@@ -69,6 +69,18 @@ class SearchController(BaseHandler):
         is_sequence_search = True if sequence_search_matcher.match(
             query) else False
 
+        project = QueryObject(self, 'Project', {
+            'title__iexact': self.path_kwargs.get('project')})
+
+        if not project.result or len(project.result) != 1:
+            self.response = {
+                'status_code': 404,
+                'custom_msg': 'Invalid project'
+            }
+            self.view.as_json()
+
+        project = project.result[0]
+
         model = self.models.get(query[0], 'Update') if \
             is_sequence_search else self.models.values()
 
@@ -76,6 +88,7 @@ class SearchController(BaseHandler):
             is_sequence_search and query[0] in \
             ('T', 'S',) else {'title__icontains': query}
 
+        query.update({'project__iexact': project})
 
         if isinstance(model, str):
             q = QueryObject(self, model, query=query,
