@@ -81,7 +81,11 @@ class SearchController(BaseHandler):
             q = QueryObject(self, model, query=query,
                             meta=meta)
             response_data = []
-            json_response = q.json(fields=self.fields,
+
+            fields = self.fields + ('task_type',) if \
+                model == 'Task' else self.fields
+
+            json_response = q.json(fields=fields,
                                    ref_fields=self.ref_fields)
             for idx, item in enumerate(q.result):
                 item_json = json_response[idx]
@@ -104,7 +108,10 @@ class SearchController(BaseHandler):
             for model_item in model:
                 q = QueryObject(self, model_item, query=query,
                             meta=meta)
-                json_response = q.json(fields=self.fields,
+                fields = self.fields + ('task_type',) if \
+                    model_item == 'Task' else self.fields
+
+                json_response = q.json(fields=fields,
                                        ref_fields=self.ref_fields)
                 for idx, item in enumerate(q.result):
                     item_json = json_response[idx]
