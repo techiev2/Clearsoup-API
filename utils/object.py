@@ -37,20 +37,40 @@ class QueryObject(object):
         # Import specified model and prepare for querying
         self._fetch_model()
 
-        self.result = self.model.objects.filter(**self.query) if \
-            self.model else self.result
+        try:
+            self.result = self.model.objects.filter(**self.query) if \
+                self.model else self.result
 
-        if self.meta and self.result:
-            for (key, val) in self.meta.iteritems():
-                if hasattr(self.result, key) and \
-                        hasattr(getattr(self.result, key), '__call__'):
-                    self.result = getattr(self.result, key).__call__(val)
+            if self.meta and self.result:
+                for (key, val) in self.meta.iteritems():
+                    if hasattr(self.result, key) and \
+                            hasattr(getattr(self.result, key), '__call__'):
+                        self.result = getattr(
+                            self.result, key).__call__(val)
 
-        if self.count == 0:
-            self.exception = {
-                'status_code': 404,
-                'custom_msg': "No object found"
-            }
+            if self.count == 0:
+                self.exception = {
+                    'status_code': 404,
+                    'custom_msg': "No object found"
+                }
+        except Exception, b_e:
+            logging.log(9001, "Base Exception: %s" % b_e.message)
+            self.result = None
+            if 'duplicate' in b_e.message:
+                self.exception = {
+                    'status_code': 500,
+                    'custom_msg': 'Duplicate entity'
+                }
+            elif 'Cannot resolve' in b_e.message:
+                self.exception = {
+                    'status_code': 500,
+                    'custom_msg': 'Invalid query'
+                }
+            else:
+                self.exception = {
+                    'status_code': 500,
+                    'custom_msg': str(b_e.message)
+                }
 
     @property
     def count(self):
@@ -75,11 +95,19 @@ class QueryObject(object):
             _models_pack_import = __import__(_models_package) if \
                 _models_package else None
             self.model = getattr(_models_pack_import, self.model_name)
-        except ImportError:
-            obj_logger.warn("Unable to import the specified model")
+        except ImportError, ie:
+            logging.log(9001, "Import error: %s" % ie.message)
+            self.result = None
             self.exception = {
                 'status_code': 500,
-                'custom_msg': ''
+                'custom_msg': "Unable to import specified model"
+            }
+        except LookupError, le:
+            logging.log(9001, "Lookup error in model: %s" % le.message)
+            self.result = None
+            self.exception = {
+                'status_code': 400,
+                'custom_msg': le.message
             }
 
     def json(self, fields=None, exclude=None, ref_fields=None):
