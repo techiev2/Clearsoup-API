@@ -44,12 +44,16 @@ class User(me.Document):
             raise ValidationError('Special characters not allowed in username.')
 
     def update_profile(self, _oauth=None, _provider=None):
+        data_dict = {}
         if _oauth and isinstance(_oauth, dict):
             _oauth_dict = {}
             _oauth_dict = {_provider: _oauth}
-            user_profile = UserProfile(**_oauth_dict)
-            user_profile.save()
-            self.update(set__profile=user_profile)
+            data_dict.update({_provider: _oauth})
+        data_dict['created_by'] = self
+        data_dict['updated_by'] = self
+        user_profile = UserProfile(**data_dict)
+        user_profile.save()
+        self.update(set__profile=user_profile)
 
     def update_organization_list(self, organization=None):
         if not self.belongs_to:
