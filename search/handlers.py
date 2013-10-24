@@ -35,6 +35,8 @@ class SearchController(BaseHandler):
             'T': 'Task',
             'S': 'Story'
         }
+        self.response = None
+        BaseView(self)
 
     @authenticated
     def get(self, **kwargs):
