@@ -82,8 +82,8 @@ class Story(me.Document):
             document.sequence = last_sequence + 1
         else:
             document.sequence = 1
-        if document.created_by not in document.project.admin:
-            raise ValidationError('You are not admin of this project')
+#        if document.created_by not in document.project.admin:
+#            raise ValidationError('You are not admin of this project')
         if len(document.title) > 128:
             raise ValidationError('Story exceeds 128 characters')
         if document.description and len(document.description) > 500:

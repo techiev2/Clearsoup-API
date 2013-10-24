@@ -10,6 +10,7 @@ from datamodels.analytics import ProjectMetadata
 from datamodels.project import Project
 from datamodels.story import Story
 from datamodels.task import Task, TASK_TYPES
+from datamodels.group import Group
 from datamodels.permission import ProjectPermission
 from mongoengine.errors import ValidationError
 from utils.dumpers import json_dumper
@@ -145,7 +146,7 @@ class StoryHandler(BaseHandler):
 
     def check_permission(self, permission):
         permission_flag = False
-        if ProjectPermission.testBit(permission.map,
+        if Group.testBit(permission.group.map,
                              PROJECT_PERMISSIONS.index('can_delete_story')):
             permission_flag = True
         return permission_flag
