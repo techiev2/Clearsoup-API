@@ -70,9 +70,9 @@ class TaskHandler(BaseHandler):
                 self.data.pop('assigned_to')
                 self.data['current_action'] = 'assign'
                 self.data['current_state'] = 'New'
-                self.data['story'] = self.get_story_object(
-                                               project=self.data['project'],
-                                               sequence=self.data['storyId'])
+            self.data['story'] = self.get_story_object(
+                                           project=self.data['project'],
+                                           sequence=self.data['storyId'])
             self.data['parent_task'] = self.get_task_object(
                                         project=self.data['project'],
                                         sequence=self.data['parentTaskId'])
