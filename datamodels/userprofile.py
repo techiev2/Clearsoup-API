@@ -21,11 +21,18 @@ class UserProfile(me.Document):
     user info
     """
 
-    first_name = me.StringField()
-    last_name = me.StringField()
+    first_name = me.StringField(max_length=30)
+    last_name = me.StringField(max_length=30)
     google = me.DictField()
     github = me.DictField()
-    avatar = me.ImageField()
+    avatar = me.URLField()
+    facebook_handle = me.StringField(max_length=100)
+    twitter_handle = me.StringField(max_length=100)
+    linkedin_handle = me.StringField(max_length=100)
+    description = me.StringField(max_length=500)
+    company = me.StringField(max_length=100)
+    designation = me.StringField(max_length=100)
+    mobile = me.IntField()
 
     created_at = me.DateTimeField(default=datetime.utcnow)
     updated_at = me.DateTimeField(default=datetime.utcnow)
@@ -34,7 +41,7 @@ class UserProfile(me.Document):
     is_active = me.BooleanField(default=True)
 
     def __str__(self):
-        return ''.join([self.first_name, self.last_name])
+        return ' '.join([self.first_name, self.last_name])
 
     def __init__(self, *args, **kwargs):
         super(UserProfile, self).__init__(*args, **kwargs)
@@ -49,7 +56,25 @@ class UserProfile(me.Document):
             if UserProfile.objects.filter(
                           github__email=document.github['email']).count() > 0:
                 raise ValidationError('This account is already registered.')
-    
+        if document.description and len(document.description) > 500:
+            raise ValidationError('Description exceeds 500 characters')
+        if document.facebook_handle and len(document.facebook_handle) > 100:
+            raise ValidationError('Facebook id exceeds 100 characters')
+        if document.twitter_handle and len(document.twitter_handle) > 100:
+            raise ValidationError('Twitter id exceeds 100 characters')
+        if document.linkedin_handle and len(document.linkedin_handle) > 100:
+            raise ValidationError('Linked-in id exceeds 100 characters')
+        if document.company and len(document.company) > 100:
+            raise ValidationError('Company exceeds 100 characters')
+        if document.desingation and len(document.desingation) > 100:
+            raise ValidationError('Designation exceeds 100 characters')
+        if document.first_name and len(document.first_name) > 30:
+            raise ValidationError('First name exceeds 30 characters')
+        if document.last_name and len(document.last_name) > 30:
+            raise ValidationError('Last name exceeds 30 characters')
+        if document.mobile and len(str(document.mobile)) > 13:
+            raise ValidationError('Mobile number exceeds 13 characters')
+
     @classmethod
     def post_save(cls, sender, document, **kwargs):
         if not document.first_name and not document.last_name:
@@ -77,7 +102,7 @@ class UserProfile(me.Document):
         super(UserProfile, self).update(*args, **kwargs)
         self.reload()
 
-    def to_json(self, fields, exclude):
+    def to_json(self, fields=None, exclude=None):
         return json_dumper(self, fields, exclude)
 
 
