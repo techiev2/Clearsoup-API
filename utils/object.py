@@ -5,8 +5,8 @@ __author__ = 'Sriram Velamur'
 
 import sys
 sys.dont_write_bytecode = True
-#from mongoengine import (ValidationError, NotUniqueError,
-#                            LookUpError, InvalidQueryError)
+from mongoengine import (ValidationError, NotUniqueError,
+                            LookUpError, InvalidQueryError)
 #from re import findall
 import logging
 
@@ -47,6 +47,17 @@ class QueryObject(object):
                 if hasattr(self.result, key) and \
                         hasattr(getattr(self.result, key), '__call__'):
                     self.result = getattr(self.result, key).__call__(val)
+
+        if self.count == 0:
+            self.exception = {
+                'status_code': 404,
+                'custom_msg': "No object found"
+            }
+
+    @property
+    def count(self):
+        """Resultset count property"""
+        return 0 if not self.result else self.result.count()
 
     def _fetch_model(self):
         """
@@ -122,3 +133,79 @@ class QueryObject(object):
             data.append(item_dict)
 
         return data
+
+    def delete(self, **kwargs):
+        """Object instance delete wrapper"""
+        if self.result and hasattr(self.result, 'delete') \
+            and hasattr(self.result.delete, '__call__'):
+            try:
+                if self.controller:
+                    user = getattr(self.controller, 'user')
+                    # if not user:
+                    #     return {
+                    #         'status_code': 401
+                    #     }
+                    self.result.delete()
+                    return_val = {
+                        'status_code': 204
+                    }
+                else:
+                    self.result.delete()
+                    return_val = {
+                        'status_code': 204
+                    }
+            except Exception, e:
+                return_val = {
+                    'status_code': 202,
+                    'message': '{0} object deletion failed'.format(
+                                                   self.model_name)
+                }
+        else:
+            return_val = {
+                'status_code': 404
+            }
+        if reduce(lambda x, y: x and y, [
+                    hasattr(self.controller, x) for x in ['ui', 'request']]):
+            setattr(self.controller, 'response', return_val)
+            return_val = None
+        return return_val
+
+    def update(self, update_data):
+        """Update object instance wrapper for QueryObject"""
+        if update_data and self.result:
+            # if not getattr(self.controller, 'user'):
+            #     self.response = {'status_code': 401}
+            #     return
+            try:
+                query_data = update_data
+                update_kwargs = {'set__%s' % key: val for
+                                 key, val in update_data.iteritems()}
+                self.result.update(**update_kwargs)
+                self.result = QueryObject(
+                    self.controller, self.model_name,
+                    query=query_data).result
+
+            except LookUpError, l_e:
+                self.result = None
+                self.exception = {
+                    'status_code': 500,
+                    'custom_msg': l_e.message
+                }
+            except InvalidQueryError, iq_e:
+                self.result = None
+                self.exception = {
+                    'status_code': 422,
+                    'custom_msg': iq_e.message[0].replace(
+                                    "Cannot resolve field",
+                                    "Invalid field").replace('"', '')
+                }
+            except Exception, exc:
+                self.result = None
+                self.exception = {
+                    'status_code': 500,
+                    'custom_msg': exc.message
+                }
+
+        if reduce(lambda x, y: x and y, [
+                hasattr(self.controller, x) for x in ['ui', 'request']]):
+            setattr(self.controller, 'response', self.json())
