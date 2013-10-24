@@ -63,9 +63,9 @@ class QueryObject(object):
                 'models_package')
 
         try:
-             _models_pack_import = __import__(_models_package) if \
+            _models_pack_import = __import__(_models_package) if \
                 _models_package else None
-             self.model = getattr(_models_pack_import, self.model_name)
+            self.model = getattr(_models_pack_import, self.model_name)
         except ImportError:
             obj_logger.warn("Unable to import the specified model")
             self.exception = {

@@ -17,6 +17,9 @@ MENTION_REGEX = r'@[A-Za-z0-9_.-]+'
 HASHTAG_REGEX = r'#[A-Za-z0-9_.-]+'
 UPDATE_REGEX = '^[a-zA-Z0-9-_,;.\?\/\s]*$'
 
+
+__all__ = ('Update', 'TaskUpdate',)
+
 class Update(me.Document):
     # Meta
     created_by = me.ReferenceField('User', required=True, dbref=True)
@@ -27,6 +30,9 @@ class Update(me.Document):
     text = me.StringField(max_length=140, required=True)
     mentions = me.ListField(required=False)
     hashtags = me.ListField(required=False)
+
+    def json(self, fields=None, exclude=None):
+        return json_dumper(self, fields, exclude)
 
     @classmethod
     def pre_save(cls, sender, document, **kwargs):

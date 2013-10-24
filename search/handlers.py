@@ -25,7 +25,6 @@ class SearchController(BaseHandler):
         Search view controller class init.
         """
         super(SearchController, self).__init__(*args, **kwargs)
-        BaseView(self)
         self.ref_fields = {
             'created_by': {
                 'fields': ('username',)
@@ -141,6 +140,15 @@ class SearchController(BaseHandler):
                         'type': model_item[0].upper()
                     })
                     response_data.append(item_json)
+
+        q = QueryObject(self, 'Update', {'hashtags__icontains':
+                                             self.path_kwargs.get(
+                                                 'query')})
+        updates_data = [x.json(fields=('_id', 'text', 'created_by'))
+                        for x in q.result] if q.result else []
+        [x.update({'type': 'U'}) for x in updates_data]
+
+        response_data.extend(updates_data)
 
         self.response = {
             'status_code': 200 if response_data else 404,
