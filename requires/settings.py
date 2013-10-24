@@ -31,7 +31,7 @@ GEN_PATH = lambda path: os.path.join(os.getcwd(), path)
 SETTINGS = {
     'APPS': ['project', 'story','auth', 'core', 'user', 'team',
              'permission', 'sprint', 'update', 'task', 'search',
-             'organization', 'websocket'
+             'group', 'organization', 'websocket'
     ],
     # Security
     'cookie': 'token',  # Specify the cookie variable name
@@ -55,6 +55,18 @@ PROJECT_PERMISSIONS = ('can_add_story', 'can_edit_story', 'can_delete_story',
 ORGANIZATION_PERMISSIONS = ('can_add_project', 'can_edit_project',
                             'can_delete_project','can_add_member',
                             'can_edit_member', 'can_delete_member',)
+
+ADMIN_ROLES = ['Administrator', 'Project Manager']
+TEAM_ROLES = ['Designer', 'Development Engineer', 'Lead',
+              'Engineering Manager', 'Business Analyst',
+              'Engineering Manager', 'Test Engineer']
+
+PROJECT_ROLES = ADMIN_ROLES + TEAM_ROLES
+permission_map = {'Administrator': 2047, 'Project Manager': 2047,
+                  'Designer': 238, 'Development Engineer': 238, 'Lead': 238,
+                  'Engineering Manager': 238, 'Business Analyst': 238,
+                  'Engineering Manager': 238, 'Test Engineer': 238}
+
 URLS = []
 
 if SETTINGS['APPS']:

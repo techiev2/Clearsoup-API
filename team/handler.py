@@ -7,11 +7,13 @@ Created on 16-Aug-2013
 import ast
 from tornado.web import HTTPError
 from requires.base import BaseHandler, authenticated
+from datamodels.group import Group
 from datamodels.project import Project
 from datamodels.user import User
 from mongoengine.errors import ValidationError
 from utils.dumpers import json_dumper
-from datamodels.permission import ProjectPermission, permission_map
+from datamodels.permission import ProjectPermission
+from requires.settings import permission_map
 import json
 
 class TeamHandler(BaseHandler):
@@ -92,21 +94,29 @@ class TeamHandler(BaseHandler):
             new_user = existing_user = None
             project.members.extend(self.data['new_members'])
             project.update(set__members=set(project.members))
-            try:
-                existing_user = ProjectPermission.objects.get(user=each['user'],
-                                              project=project)
-                existing_user.update(set__role=each['role'],
-                                     set__map=permission_map[each['role']])
-            except ProjectPermission.DoesNotExist:
-                new_user = ProjectPermission(user=each['user'],
-                                             project=project,
-                                             role=each['role'],
-                                             map=permission_map[each['role']])
-                new_user.save()
-            if new_user:
-                response['members'].append(new_user.to_json())
-            elif existing_user:
-                response['members'].append(existing_user.to_json())
+            grp = [g for g in Group.objects.filter(project=project
+                     ) if each['role'] in g.roles]
+            if not grp:
+                raise HTTPError(404, **{'reason': 'Role not added to the project or group'})
+            else:
+                grp = grp[0]
+                try:
+                    existing_user = ProjectPermission.objects.get(
+                                                  user=each['user'],
+                                                  project=project)
+                    existing_user.update(set__role=each['role'],
+                                         set__group=grp)
+                except ProjectPermission.DoesNotExist:
+                    print 111
+                    new_user = ProjectPermission(user=each['user'],
+                                                 project=project,
+                                                 role=each['role'],
+                                                 group=grp)
+                    new_user.save()
+                if new_user:
+                    response['members'].append(new_user.to_json())
+                elif existing_user:
+                    response['members'].append(existing_user.to_json())
         self.write(json_dumper(response))
 
     @authenticated

@@ -15,6 +15,8 @@ from mongoengine import signals
 from utils.dumpers import json_dumper
 from utils.app import slugify
 
+from requires.settings import PROJECT_ROLES
+
 TITLE_REGEX = '^[a-zA-Z0-9-_\s]*$'
 DESCRIPTION_REGEX = '^[a-zA-Z0-9-_,;.\?\/\s]*$'
 
@@ -42,6 +44,7 @@ class Project(me.Document):
     admin = me.ListField(me.ReferenceField('User'))
     is_active = me.BooleanField(default=True)
     description = me.StringField(max_length=500)
+    roles = me.ListField(default=PROJECT_ROLES)
     
     # these have to be moved to base model
     created_by = me.ReferenceField('User', required=True, dbref=True)
