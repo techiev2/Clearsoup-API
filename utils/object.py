@@ -5,9 +5,7 @@ __author__ = 'Sriram Velamur'
 
 import sys
 sys.dont_write_bytecode = True
-from mongoengine import (ValidationError, NotUniqueError,
-                            LookUpError, InvalidQueryError)
-#from re import findall
+from mongoengine import (LookUpError, InvalidQueryError)
 import logging
 
 obj_logger = logging.getLogger(__name__)
@@ -95,8 +93,6 @@ class QueryObject(object):
         :type exclude: tuple/list
         :param ref_fields: Fields to include in case of DBRef fields
         :type ref_fields: dict
-        :param ref_exclude: Fields to exclude in case of DBRef fields
-        :type ref_exclude: dict
         :returns: JSON representation of result set or exception dict
         :rtype: dict/list
         """
