@@ -152,6 +152,15 @@ class SearchController(BaseHandler):
 
         response_data.extend(updates_data)
 
+        response_data = {
+            'stories': [x for x in response_data if x.get('type')
+                                                    =='S'],
+            'tasks': [x for x in response_data if x.get('type')
+                                                    =='T'],
+            'updates': [x for x in response_data if x.get('type')
+                                                    =='U']
+        }
+
         self.response = {
             'status_code': 200 if response_data else 404,
             'data': response_data or None
