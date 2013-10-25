@@ -90,7 +90,6 @@ class SprintHandler(BaseHandler):
         project_name = self.get_argument('project_name', None)
         project_id = self.data.get('projectId', None)
         number_of_sprints = int(self.data.get('sprints', None))
-        print number_of_sprints
         if project_id:
             project = self.get_valid_project(project_id)
         elif owner and project_name:
