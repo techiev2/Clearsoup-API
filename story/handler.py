@@ -192,7 +192,9 @@ class StoryHandler(BaseHandler):
                     try:
                         story = Story.objects.get(sequence=int(story),
                                                   project=project)
+                        old_sprint = story.sprint
                         story.update(set__sprint=self.data['sprint'])
+                        story.update_sprint_metadata(old_sprint=old_sprint)
                     except Story.DoesNotExist, error:
                         raise HTTPError(500, **{'reason':self.error_message(error)})
                 response = {'message': 'Successfully moved to sprint %s.' % str(
