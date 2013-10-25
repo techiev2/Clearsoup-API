@@ -3,18 +3,13 @@ Created on 21-Aug-2013
 
 @author: someshs
 '''
-
-'''
-Created on 06-Aug-2013
-
-@author: someshs
-'''
 import json
 from tornado.web import HTTPError
 from mongoengine.errors import ValidationError
 
 from requires.base import BaseHandler, authenticated
 from datamodels.project import Project, Sprint
+from datamodels.analytics import ProjectMetadata
 from datamodels.task import Task
 from utils.dumpers import json_dumper
 
@@ -91,18 +86,30 @@ class SprintHandler(BaseHandler):
 
     @authenticated
     def put(self, *args, **kwargs):
+        owner = self.get_argument('owner', None)
+        project_name = self.get_argument('project_name', None)
         project_id = self.data.get('projectId', None)
-        number_of_sprints = self.data.get('sprints', None)
-        project = self.get_valid_project(project_id)
-        if self.current_user != project.admin:
-            self.send_error(404)
+        number_of_sprints = int(self.data.get('sprints', None))
+        print number_of_sprints
+        if project_id:
+            project = self.get_valid_project(project_id)
+        elif owner and project_name:
+            permalink = owner + '/' + project_name
+            project = self.get_valid_project(project_id, permalink)
         response = {}
-        for each in xrange(number_of_sprints):
-            try:
-                sprint = project.add_sprint(self.current_user)
-                response['Sprint :' + str(sprint.sequence)] = sprint.to_json()
-            except ValidationError, error:
-                raise HTTPError(500, **{'reason':self.error_message(error)})
-        self.write(response)
+        if self.current_user not in project.admin:
+            self.send_error(404)
+        else:
+            for each in xrange(number_of_sprints):
+                try:
+                    sprint = project.add_sprint(self.current_user)
+                    print '*' * 20
+                    print sprint
+                    sprint.update_sprint_metadata()
+                    print sprint
+                    response['Sprint :' + str(sprint.sequence)] = sprint.to_json()
+                except ValidationError, error:
+                    raise HTTPError(500, **{'reason':self.error_message(error)})
+            self.write(response)
 
 
