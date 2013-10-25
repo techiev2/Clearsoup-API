@@ -66,7 +66,7 @@ class UserProfile(me.Document):
             raise ValidationError('Linked-in id exceeds 100 characters')
         if document.company and len(document.company) > 100:
             raise ValidationError('Company exceeds 100 characters')
-        if document.desingation and len(document.desingation) > 100:
+        if document.designation and len(document.designation) > 100:
             raise ValidationError('Designation exceeds 100 characters')
         if document.first_name and len(document.first_name) > 30:
             raise ValidationError('First name exceeds 30 characters')
