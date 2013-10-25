@@ -11,7 +11,6 @@ sys.dont_write_bytecode = True
 import mongoengine as me
 from mongoengine.base import ValidationError
 from mongoengine import signals
-
 from utils.dumpers import json_dumper
 from utils.app import slugify
 
@@ -125,6 +124,17 @@ class Project(me.Document):
                             set__admin=[document.created_by])
 
     def create_sprints(self):
+        # for todo
+        try:
+            Sprint.objects.get(sequence=-1, project=self)
+        except Sprint.DoesNotExist:
+            Sprint.objects.create(project=self,
+                      created_by=self.created_by,
+                      updated_by=self.updated_by,
+                      sequence=-1,
+                      start_date=self.start_date,
+                      end_date=self.end_date)
+
         for (idx, sprint) in enumerate(self.sprints):
             if idx != 0:
                 proj_start_date = self.start_date
@@ -149,16 +159,6 @@ class Project(me.Document):
                     Sprint.objects.create(project=self,
                               created_by=self.created_by,
                               updated_by=self.updated_by)
-        # for todo
-        try:
-            Sprint.objects.get(sequence=-1, project=self)
-        except Sprint.DoesNotExist:
-            Sprint.objects.create(project=self,
-                      created_by=self.created_by,
-                      updated_by=self.updated_by,
-                      sequence=-1,
-                      start_date=self.start_date,
-                      end_date=self.end_date)
 
     def calculate_sprints(self):
         project_duration = (self.end_date - self.start_date).days
@@ -242,7 +242,9 @@ class Project(me.Document):
                                     ).order_by('created_at')
 
     def get_last_sprint(self):
+        print 'in get last sprint'
         sprints = Sprint.objects.filter(project=self).order_by('created_at')
+        print [s.sequence for s in sprints]
         if sprints:
             sprint = list(sprints)[-1]
         else:
@@ -250,13 +252,16 @@ class Project(me.Document):
         return sprint
     
     def add_sprint(self, user):
+        print ' in add sprint'
         last_sprint = self.get_last_sprint()
+        print last_sprint
         duration = self.duration
         if not last_sprint:
             start_date = self.start_date
             end_date = self.start_date + timedelta(days=duration)
-            sequence = 0 
+            sequence = 0
         else:
+            print 261
             if last_sprint.sequence != 0:
                 start_date = last_sprint.end_date + timedelta(days=1)
                 end_date = start_date + timedelta(days=duration)
@@ -266,6 +271,7 @@ class Project(me.Document):
                 end_date = start_date + timedelta(days=duration)
                 sequence = last_sprint.sequence + 1
         try:
+            print sequence
             sprint = Sprint(start_date=start_date,
                             end_date=end_date,
                             sequence=sequence,
@@ -273,6 +279,8 @@ class Project(me.Document):
                             created_by=user,
                             updated_by=user)
             sprint.save()
+            print '^' * 30
+            print sprint
             self.sprints.append('Sprint ' + str(sprint.sequence))
             self.update(set__sprints=self.sprints)
             return sprint
@@ -324,6 +332,22 @@ class Sprint(me.Document):
     def update(self, *args, **kwargs):
         super(Sprint, self).update(*args, **kwargs)
         self.reload()
+
+    def update_sprint_metadata(self):
+        from datamodels.analytics import ProjectMetadata
+        '''
+            function to update project metadata in case a sprint is being
+            added.
+        '''
+        project_metadata = None
+        try:
+            project_metadata = ProjectMetadata.objects.get(project=self.project)
+        except ProjectMetadata.DoesNotExist:
+            raise ValidationError('No data available')
+        metadata = project_metadata.metadata
+        sprint_metadata = metadata[self.project.permalink]
+        sprint_metadata.update({str(self.sequence):{}})
+        project_metadata.update(set__metadata=metadata)
 
     def get_stories(self):
         # import is done here in order to resolve cyclic import
