@@ -41,8 +41,9 @@ SETTINGS = {
     'mongo_port': 8800,
     'mongo_db': 'clearsoup-db',
     'api_root': 'http://localhost:9000/api/',
-    'web_root': 'http://localhost:8000',
-    'models_package': 'datamodels'
+    'web_root': 'http://www.clearsoup.in/',
+    'models_package': 'datamodels',
+    'default_avatar': 'http://www.clearsoup.in/assets/images/avatar.png'
 }
 
 PROJECT_PERMISSIONS = ('can_add_story', 'can_edit_story', 'can_delete_story',
