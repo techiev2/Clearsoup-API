@@ -30,10 +30,15 @@ class SearchController(BaseHandler):
                 'fields': ('username',)
             }
         }
-        self.fields = ('sequence', 'created_by', 'title')
+        self.fields = {
+            'T': ('sequence', 'created_by', 'title', 'task_type'),
+            'S': ('sequence', 'created_by', 'title', 'priority'),
+            'U': ('text', 'created_by', 'id')
+        }
         self.models = {
             'T': 'Task',
-            'S': 'Story'
+            'S': 'Story',
+            'U': 'Update'
         }
         self.response = None
         BaseView(self)
@@ -70,96 +75,31 @@ class SearchController(BaseHandler):
         is_sequence_search = True if sequence_search_matcher.match(
             query) else False
 
-        project = QueryObject(self, 'Project', {
-            'title__iexact': self.path_kwargs.get('project')})
+        models = self.models.iteritems()
+        response_data = {}
 
-        if not project.result or len(project.result) != 1:
-            self.response = {
-                'status_code': 404,
-                'custom_msg': 'Invalid project'
-            }
-            self.view.as_json()
+        count = 0
 
-        project = project.result[0]
+        for model_key, model_name in models:
+            query_data = self.path_kwargs.get('query')
+            query = {'sequence': query_data} if \
+                is_sequence_search else {
+                'title__icontains': query_data} if model_key in (
+                'S', 'T') else {'hashtags__icontains': query_data
+            .lstrip('#').lower()}
+            q = QueryObject(self, model_name, query)
+            count += q.count
 
-        model = self.models.get(query[0], 'Update') if \
-            is_sequence_search else self.models.values()
+            response_key = 'stories' if model_key == 'S' else \
+                'tasks' if model_key == 'T' else 'updates'
+            if q.exception:
+                search_logger.log(8888, q.exception)
+            if response_key:
+                response_data.update({response_key: q.json(
+                    fields=self.fields.get(model_key))} \
+                    if not q.exception else {})
 
-        query = {'sequence': query[1:]} if \
-            is_sequence_search and query[0] in \
-            ('T', 'S',) else {'title__icontains': query}
-
-        query.update({'project__iexact': project})
-
-        if isinstance(model, str):
-            q = QueryObject(self, model, query=query,
-                            meta=meta)
-            response_data = []
-
-            fields = self.fields + ('task_type',) if \
-                model == 'Task' else self.fields
-
-            json_response = q.json(fields=fields,
-                                   ref_fields=self.ref_fields)
-            for idx, item in enumerate(q.result):
-                item_json = json_response[idx]
-                meta_query = {
-                    'hashtags__icontains': '%s%s' % (
-                        model[0].lower(), item.sequence)
-                }
-                item_updates = QueryObject(self, 'Update',
-                                           meta_query)
-                item_json.update({
-                    'updates': item_updates.json(
-                        fields=('text',),
-                        ref_fields=self.ref_fields),
-                    'type': model[0].upper()
-                })
-                response_data.append(item_json)
-
-        else:
-            response_data = []
-            for model_item in model:
-                q = QueryObject(self, model_item, query=query,
-                            meta=meta)
-                fields = self.fields + ('task_type',) if \
-                    model_item == 'Task' else self.fields
-
-                json_response = q.json(fields=fields,
-                                       ref_fields=self.ref_fields)
-                for idx, item in enumerate(q.result):
-                    item_json = json_response[idx]
-                    meta_query = {
-                        'hashtags__icontains': '%s%s' % (
-                            model_item[0].lower(), item.sequence)
-                    }
-                    item_updates = QueryObject(self, 'Update',
-                                               meta_query)
-                    item_json.update({
-                        'updates': item_updates.json(
-                            fields=('text',),
-                            ref_fields=self.ref_fields),
-                        'type': model_item[0].upper()
-                    })
-                    response_data.append(item_json)
-
-        q = QueryObject(self, 'Update', {'hashtags__icontains':
-                                             self.path_kwargs.get(
-                                                 'query')})
-        updates_data = [x.json(fields=('_id', 'text', 'created_by'))
-                        for x in q.result] if q.result else []
-        [x.update({'type': 'U'}) for x in updates_data]
-
-        response_data.extend(updates_data)
-
-        response_data = {
-            'stories': [x for x in response_data if x.get('type')
-                                                    =='S'],
-            'tasks': [x for x in response_data if x.get('type')
-                                                    =='T'],
-            'updates': [x for x in response_data if x.get('type')
-                                                    =='U']
-        }
+        response_data.update({'count': count})
 
         self.response = {
             'status_code': 200 if response_data else 404,
