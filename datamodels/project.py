@@ -242,9 +242,7 @@ class Project(me.Document):
                                     ).order_by('created_at')
 
     def get_last_sprint(self):
-        print 'in get last sprint'
         sprints = Sprint.objects.filter(project=self).order_by('created_at')
-        print [s.sequence for s in sprints]
         if sprints:
             sprint = list(sprints)[-1]
         else:
@@ -252,16 +250,13 @@ class Project(me.Document):
         return sprint
     
     def add_sprint(self, user):
-        print ' in add sprint'
         last_sprint = self.get_last_sprint()
-        print last_sprint
         duration = self.duration
         if not last_sprint:
             start_date = self.start_date
             end_date = self.start_date + timedelta(days=duration)
             sequence = 0
         else:
-            print 261
             if last_sprint.sequence != 0:
                 start_date = last_sprint.end_date + timedelta(days=1)
                 end_date = start_date + timedelta(days=duration)
@@ -271,7 +266,6 @@ class Project(me.Document):
                 end_date = start_date + timedelta(days=duration)
                 sequence = last_sprint.sequence + 1
         try:
-            print sequence
             sprint = Sprint(start_date=start_date,
                             end_date=end_date,
                             sequence=sequence,
@@ -279,8 +273,6 @@ class Project(me.Document):
                             created_by=user,
                             updated_by=user)
             sprint.save()
-            print '^' * 30
-            print sprint
             self.sprints.append('Sprint ' + str(sprint.sequence))
             self.update(set__sprints=self.sprints)
             return sprint
@@ -294,7 +286,6 @@ class Project(me.Document):
         '''
         # Set the permalink
         self.permalink = self.get_permalink()
-
         super(Project, self).save(*args, **kwargs)
         self.calculate_sprints()
         self.reload()
@@ -320,7 +311,6 @@ class Sprint(me.Document):
     meta = {
         'indexes': ['project']
         }
-
 
     def __str__(self):
         return self.project.title +'-' + str(self.sequence)
