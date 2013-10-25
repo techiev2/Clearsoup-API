@@ -16,7 +16,7 @@ from datamodels.user import User
 from datamodels.project import Project, Sprint
 from datamodels.story import Story
 from datamodels.task import Task, TASK_TYPES
-from datamodels.permission import ProjectPermission
+from datamodels.team import Team
 from datamodels.update import TaskUpdate
 from utils.app import millisecondToDatetime
 from utils.dumpers import json_dumper
@@ -274,14 +274,14 @@ class TaskHandler(BaseHandler):
             project = self.get_project_object(project_id=None,
                                               permalink=project_permalink)
         if tasks:
-            permission = None
+            team = None
             try:
-                permission = ProjectPermission.objects.get(project=project,
+                team = Team.objects.get(project=project,
                                                        user=self.current_user)
-            except ProjectPermission.DoesNotExist:
+            except Team.DoesNotExist:
                 msg = 'Not authorized to delete tasks of this project'
                 raise HTTPError(500, **{'reason':msg})
-            if self.check_permission(permission):
+            if self.check_permission(team.role):
                 if self.validate_tasks(project=project, tasks=tasks):
                     for task in tasks:
                         try:

@@ -10,8 +10,8 @@ from datamodels.analytics import ProjectMetadata
 from datamodels.project import Project
 from datamodels.story import Story
 from datamodels.task import Task, TASK_TYPES
-from datamodels.group import Group
-from datamodels.permission import ProjectPermission
+from datamodels.permission import Role
+from datamodels.team import Team
 from mongoengine.errors import ValidationError
 from utils.dumpers import json_dumper
 import json
@@ -144,9 +144,9 @@ class StoryHandler(BaseHandler):
             if id == len(stories) - 1: flag = True
         return flag 
 
-    def check_permission(self, permission):
+    def check_permission(self, role):
         permission_flag = False
-        if Group.testBit(permission.group.map,
+        if Role.testBit(role.map,
                              PROJECT_PERMISSIONS.index('can_delete_story')):
             permission_flag = True
         return permission_flag
@@ -216,14 +216,14 @@ class StoryHandler(BaseHandler):
         if not stories and not project:
             self.send_error(404)
         else:
-            permission = None
+            team = None
             try:
-                permission = ProjectPermission.objects.get(project=project,
-                                                       user=self.current_user)
-            except ProjectPermission.DoesNotExist:
+                team = Team.objects.get(project=project,
+                                               user=self.current_user)
+            except Team.DoesNotExist:
                 msg = 'Not authorized to delete stories of this project'
                 raise HTTPError(500, **{'reason':msg})
-            if self.check_permission(permission):
+            if self.check_permission(team.role):
                 if self.validate_stories(project=project, stories=stories):
                     for story in stories:
                         try:

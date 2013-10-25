@@ -7,13 +7,12 @@ Created on 16-Aug-2013
 import ast
 from tornado.web import HTTPError
 from requires.base import BaseHandler, authenticated
-from datamodels.group import Group
 from datamodels.project import Project
 from datamodels.user import User
+from datamodels.team import Team
 from mongoengine.errors import ValidationError
 from utils.dumpers import json_dumper
-from datamodels.permission import ProjectPermission
-from requires.settings import permission_map
+from datamodels.permission import Role
 import json
 
 class TeamHandler(BaseHandler):
@@ -25,7 +24,7 @@ class TeamHandler(BaseHandler):
         }
     data = {}
 
-    def clean_request(self):
+    def clean_request(self, project):
         '''
             function to remove additional data key send in request.
             e.g token
@@ -37,8 +36,14 @@ class TeamHandler(BaseHandler):
         for each in self.data['data']:
             try:
                 user = User.objects.get(email=each['email'])
+                try:
+                    role = Role.objects.get(role=each['role'],
+                                            project=project)
+                    print role
+                except Role.DoesNotExist:
+                    raise HTTPError(404, **{'reason': 'Please create '+each['role']+'from project settings first.'})
                 self.data['members'].append({'user': user,
-                                             'role': each['role']})
+                                             'role': role})
                 self.data['new_members'].append(user)
             except User.DoesNotExist:
                 raise HTTPError(404, **{'reason': each['email'] + ' not found '})
@@ -69,7 +74,7 @@ class TeamHandler(BaseHandler):
         project_id = self.get_argument('projectId', None)
         project = self.get_project_object(project_id=project_id,
                                           permalink=None)
-        members = list(ProjectPermission.objects.filter(project=project).exclude("project"))
+        members = list(Team.objects.filter(project=project).exclude("project"))
         self.write(json.dumps(json_dumper(members)))
 
     @authenticated
@@ -87,45 +92,59 @@ class TeamHandler(BaseHandler):
         elif project_permalink:
             project = self.get_project_object(project_id=None,
                                               permalink=project_permalink)
-        self.clean_request()
+        self.clean_request(project)
         response = {}
         response['members'] = []
         for each in self.data['members']:
             new_user = existing_user = None
             project.members.extend(self.data['new_members'])
             project.update(set__members=set(project.members))
-            grp = [g for g in Group.objects.filter(project=project
-                     ) if each['role'] in g.roles]
-            if not grp:
-                raise HTTPError(404, **{'reason': 'Role not added to the project or group'})
-            else:
-                grp = grp[0]
-                try:
-                    existing_user = ProjectPermission.objects.get(
-                                                  user=each['user'],
-                                                  project=project)
-                    existing_user.update(set__role=each['role'],
-                                         set__group=grp)
-                except ProjectPermission.DoesNotExist:
-                    print 111
-                    new_user = ProjectPermission(user=each['user'],
-                                                 project=project,
-                                                 role=each['role'],
-                                                 group=grp)
-                    new_user.save()
-                if new_user:
-                    response['members'].append(new_user.to_json())
-                elif existing_user:
-                    response['members'].append(existing_user.to_json())
+            try:
+                existing_user = Team.objects.get(user=each['user'],
+                                              project=project)
+                existing_user.update(set__role=each['role'])
+            except Team.DoesNotExist:
+                new_user = Team(user=each['user'],
+                                 project=project,
+                                 role=each['role'],
+                                 created_by=self.current_user,
+                                 updated_by=self.current_user)
+                new_user.save()
+#            exclude = ['udpated_at', 'updated_by', 'created_at', 'created_by']
+            if new_user:
+                response['members'].append(new_user.to_json())
+            elif existing_user:
+                response['members'].append(existing_user.to_json())
+        print new_user
+        
         self.write(json_dumper(response))
+
+    def clean_delete_request(self):
+        self.data['members'] = []
+        self.data['new_members'] = []
+        for each in self.data['data']:
+            try:
+                user = User.objects.get(email=each['email'])
+                self.data['members'].append({'user': user})
+                self.data['new_members'].append(user)
+            except User.DoesNotExist:
+                raise HTTPError(404, **{'reason': each['email'] + ' not found '})
+
 
     @authenticated
     def delete(self, *args, **kwargs):
-        sequence = self.get_argument('projectId', None)
-        project = self.get_project_object(sequence)
-        self.clean_request()
+        project_id = self.get_argument('projectId', None)
+        project_permalink = self.get_argument('project_permalink', None)
+        project = None
+        if project_id:
+            project = self.get_project_object(project_id=project_id,
+                                              permalink=None)
+        elif project_permalink:
+            project = self.get_project_object(project_id=None,
+                                              permalink=project_permalink)
+        self.clean_delete_request()
         existing_members = project.members
-        [ProjectPermission.objects.filter(user=each,project=project).delete()
+        [Team.objects.filter(user=each,project=project).delete()
          for each in self.data['members']]
         [existing_members.pop(existing_members.index(each)) for each in 
          self.data['members']]
