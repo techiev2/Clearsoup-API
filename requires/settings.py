@@ -30,8 +30,7 @@ GEN_PATH = lambda path: os.path.join(os.getcwd(), path)
 
 SETTINGS = {
     'APPS': ['profile','project', 'story','auth', 'core', 'user', 'team',
-             'permission', 'sprint', 'update', 'task', 'search',
-             'group', 'organization', 'websocket', ],
+             'permission', 'sprint', 'update', 'task', 'search', 'websocket'],
     # Security
     'cookie': 'token',  # Specify the cookie variable name
     'login_url': '/api/authenticate/',  # Login path for the application
