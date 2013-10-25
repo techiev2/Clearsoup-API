@@ -10,14 +10,15 @@ from mongoengine import ValidationError, Q
 from requires.base import BaseHandler, authenticated, validate_path_arg
 from datamodels.analytics import ProjectMetadata
 from datamodels.project import Project, Sprint
-from datamodels.group import Group
+#from datamodels.group import Group
 from datamodels.organization import Organization
 from datamodels.story import Story
+from datamodels.team import Team
 from datamodels.user import User
-from datamodels.permission import ProjectPermission
+from datamodels.permission import Role
 from utils.app import millisecondToDatetime
 from utils.dumpers import json_dumper
-from requires.settings import PROJECT_PERMISSIONS
+from requires.settings import PROJECT_PERMISSIONS, permission_map
 
 
 class ProjectHandler(BaseHandler):
@@ -66,7 +67,6 @@ class ProjectHandler(BaseHandler):
         sequence = self.get_argument('projectId', None)
         owner = self.get_argument('owner', None)
         project_name = self.get_argument('project_name', None)
-        
         response = {}
         # By Sequence number
         if sequence:
@@ -141,7 +141,6 @@ class ProjectHandler(BaseHandler):
 
     @authenticated
     def post(self, *args, **kwargs):
-        """TBD"""
         project_id = self.get_argument('projectId', None)
         owner = self.get_argument('owner', None)
         project_name = self.get_argument('project_name', None)
@@ -160,17 +159,33 @@ class ProjectHandler(BaseHandler):
             self.send_error(400)
         response = {}
         if roles:
-            project.update(set__roles=list(roles))
+            new_roles = [role for role in roles if role not in project.roles]
+            Role.create_role_map(new_roles, project, self.current_user,
+                                 map=0)
+            project.roles.extend(roles)
+            project.update(set__roles=set(list(project.roles)))
         self.write(project.to_json())
 
-
-    def set_user_permission(self, project):
-        group = Group.objects.get(name='Administrator', project=project)
-        p = ProjectPermission(project=project,
-                              user=self.current_user,
-                              role="Administrator",
-                              group=group)
-        p.save()
+#
+#    def set_user_permission(self, project):
+#        p = Role(project=project,
+#                  user=self.current_user,
+#                              role="Administrator",
+#                              group=group)
+#        p.save()
+    def create_role(self, project, creating_project):
+        if creating_project:
+            print project.roles
+            for role in project.roles:
+                r = Role(project=project,
+                        role=role,
+                        map=permission_map[role],
+                        created_by=self.current_user,
+                        updated_by=self.current_user)
+                r.save()
+                print r
+        else:
+            pass
 
     @authenticated
     def put(self, *args, **kwargs):
@@ -180,8 +195,8 @@ class ProjectHandler(BaseHandler):
             project.save(validate=True, clean=True)
             ProjectMetadata.create_project_metadata(project)
             Story.create_todo(project, self.current_user)
-            Group.create_initial_project_group(project, self.current_user)
-            self.set_user_permission(project)
+            self.create_role(project, creating_project=True)
+            Team.create_team(project=project, user=self.current_user)
         except ValidationError, error:
             raise HTTPError(500, **{'reason':self.error_message(error)})
         self.write(project.to_json())
@@ -195,7 +210,6 @@ class ProjectHandler(BaseHandler):
             self.write(project.to_json())
         except ValidationError, error:
             raise HTTPError(404, **{'reason': self.error_message(error)})
-
 
 
 class ProjectSettingHandler(BaseHandler):
@@ -229,7 +243,7 @@ class ProjectSettingHandler(BaseHandler):
     def generate_readable_permission_json(self, group=None):
         permission_dict = {}
         for perm in PROJECT_PERMISSIONS:
-            if Group.testBit(group.map,
+            if Role.testBit(group.map,
                              PROJECT_PERMISSIONS.index(perm)):
                 permission_dict[perm] = 1
             else:
@@ -254,12 +268,15 @@ class ProjectSettingHandler(BaseHandler):
                                              permalink=project_permalink)
         else:
             self.send_error(400)
-        groups = Group.objects.filter(project=project).exclude('created_by',
-                                            'updated_by')
-        response['groups'] = json_dumper(list(groups))
+        roles = Role.objects.filter(project=project
+                                           ).exclude('created_by', 'updated_by',
+                                                     'project', 'updated_on', 
+                                                     'created_on')
+        response['roles'] = json_dumper(list(roles))
         response['permissions'] = PROJECT_PERMISSIONS
         d = {}
-        [d.update({group.name: self.generate_readable_permission_json(group)})
-         for group in groups]
-        response['group_permissions_map'] = d
+        [d.update({role.role: self.generate_readable_permission_json(role)})
+         for role in roles]
+        response['project_permissions_map'] = d
         self.write(json.dumps(response))
+

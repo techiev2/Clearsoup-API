@@ -116,6 +116,26 @@ class Story(me.Document):
                                     is_active=True).order_by('sequence')
         return tasks
 
+    def update_sprint_metadata(self, old_sprint=None):
+        '''
+            function to update project metadata in case a story is being
+            moved to different sprint.
+        '''
+        project_metadata = None
+        try:
+            project_metadata = ProjectMetadata.objects.get(project=self.project)
+        except ProjectMetadata.DoesNotExist:
+            raise ValidationError('No data available')
+        metadata = project_metadata.metadata
+        sprint_metadata = metadata[self.project.permalink][str(old_sprint.sequence)]
+        story_metadata = sprint_metadata[str(self.sequence)]
+        sprint_metadata.pop(str(self.sequence))
+        for sprint in metadata[self.project.permalink]:
+            if int(sprint) == self.sprint.sequence:
+                sprint_dict = metadata[self.project.permalink][sprint]
+                sprint_dict.update({str(self.sequence):story_metadata})
+        project_metadata.update(set__metadata=metadata)
+
     @classmethod
     def create_todo(cls, project=None, user=None):
         # it may be the case that there exist a regular story with name 'TODO'.
