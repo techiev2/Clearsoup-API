@@ -7,6 +7,7 @@ from mongoengine.base import ValidationError
 from organization import Organization
 from userprofile import UserProfile
 from utils.dumpers import  json_dumper
+from requires.settings import SETTINGS
 
 sys.dont_write_bytecode = True
 
@@ -51,6 +52,7 @@ class User(me.Document):
             data_dict.update({_provider: _oauth})
         data_dict['created_by'] = self
         data_dict['updated_by'] = self
+        data_dict['avatar'] = SETTINGS['default_avatar']
         user_profile = UserProfile(**data_dict)
         user_profile.save()
         self.update(set__profile=user_profile)
