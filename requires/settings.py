@@ -61,9 +61,9 @@ TEAM_ROLES = ['Designer', 'Development Engineer', 'Lead',
 
 PROJECT_ROLES = ADMIN_ROLES + TEAM_ROLES
 permission_map = {'Administrator': 2047, 'Project Manager': 2047,
-                  'Designer': 238, 'Development Engineer': 238, 'Lead': 238,
-                  'Engineering Manager': 238, 'Business Analyst': 238,
-                  'Engineering Manager': 238, 'Test Engineer': 238}
+                  'Designer': 283, 'Development Engineer': 283, 'Lead': 283,
+                  'Engineering Manager': 283, 'Business Analyst': 283,
+                  'Engineering Manager': 283, 'Test Engineer': 283}
 
 URLS = []
 
