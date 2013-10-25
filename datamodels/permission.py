@@ -20,7 +20,7 @@ class Role(me.Document):
     project = me.ReferenceField('Project', required=True, dbref=True,
                                 reverse_delete_rule=me.CASCADE,)
     role = me.StringField()
-    map = me.IntField(default=00000000000)
+    map = me.IntField(default=0)
     created_by = me.ReferenceField('User', required=True, dbref=True,
                                    reverse_delete_rule=me.CASCADE,)
     updated_by = me.ReferenceField('User', required=True, dbref=True,

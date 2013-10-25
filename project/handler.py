@@ -161,7 +161,7 @@ class ProjectHandler(BaseHandler):
         if roles:
             new_roles = [role for role in roles if role not in project.roles]
             Role.create_role_map(new_roles, project, self.current_user,
-                                 map=00000000000)
+                                 map=0)
             project.roles.extend(roles)
             project.update(set__roles=set(list(project.roles)))
         self.write(project.to_json())
