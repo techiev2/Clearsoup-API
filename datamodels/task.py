@@ -28,8 +28,8 @@ states = {
     'default': {
         'initial': 'New',
         'events': [
-            { 'name': 'assign', 'src': ['New','Reopened','Assigned'], 'dst': 'Assigned' },
-            { 'name': 'reassign', 'src': ['Assigned','InProgress'], 'dst': 'Assigned' },
+            { 'name': 'assign', 'src': ['New','Reopened','Assigned','InProgress'], 'dst': 'Assigned' },
+            #{ 'name': 'reassign', 'src': ['Assigned','InProgress'], 'dst': 'Assigned' },
             { 'name': 'start', 'src': ['New','Assigned','Reopened'], 'dst': 'InProgress' },
             { 'name': 'close', 'src': ['New','Assigned','InProgress','Reopened'], 'dst': 'Closed' },
             { 'name': 'reopen', 'src': 'Closed', 'dst': 'Reopened' },
@@ -185,6 +185,7 @@ class Task(me.Document):
             qParams['set__assigned_to'] = user
         if data.get('username', None):
             qParams['set__assigned_to'] = data['username']
+
         # Trigger the state transition
         getattr(self.state_machine, event)(params=qParams)
         # if event in ['assign', 'accept', 'reassign']:
