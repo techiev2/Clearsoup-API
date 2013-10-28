@@ -144,7 +144,8 @@ class QueryObject(object):
             item_dict = {}
             for field in (field for field in fields if field not \
                 in exclude):
-                item_data = getattr(item, field)
+                item_data = getattr(item, field) if field not in (
+                    'pk', 'id', '_id') else str(item.pk)
                 item_data = item_data if not hasattr(
                     item_data, 'to_mongo') else item_data.to_json(
                     fields=ref_fields.get(field,
