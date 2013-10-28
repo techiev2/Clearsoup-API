@@ -206,15 +206,16 @@ class TaskHandler(BaseHandler):
         if 'logged_effort' in data.keys() and data['logged_effort']:
             val = re.findall(pat , data['logged_effort'])
             if not val:
-                raise HTTPError(404, **{'reason': 'Efforts should be only in integers.'})
+                raise HTTPError(403, reason='Efforts should be only in integers')
             
         if 'estimated_effort' in data.keys() and data['estimated_effort']:
             val = re.findall(pat , data['estimated_effort'])
             if not val:
                 raise HTTPError(404, **{'reason': 'Efforts should be only in integers.'})
         
-        if task.assigned_to and task.assigned_to != self.current_user:
-            raise HTTPError(404, **{'reason': 'You were not assigned this task'})
+        if task.assigned_to and (task.assigned_to != self.current_user or\
+            task.assigned_to != task.created_by):
+            raise HTTPError(403, reason='You were not assigned this task')
 
 
     @authenticated
@@ -230,9 +231,10 @@ class TaskHandler(BaseHandler):
         elif project_permalink:
             project = self.get_project_object(project_id=None,
                                               permalink=project_permalink)
-        task = self.get_task_object(project=project, sequence=task_id)
+        task = self.get_task_object(project=project, sequence=task_id)        
         if 'event' in self.data.keys() and self.data['event']:
             self.validate_post_data(self.data, task)
+            print self.data
             task.task_state_transition(data=self.data,
                                        user=self.current_user)
         if self.data['logged_effort']:
