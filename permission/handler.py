@@ -127,28 +127,32 @@ class PermissionHandler(BaseHandler):
             self.send_error(400)
         if self.current_user not in project.members:
             raise HTTPError(404, **{'reason': 'Project not found'})
-        try:
-            role = Role.objects.get(role=role, project=project)
-            self.data['permissions'] = ast.literal_eval(self.data['permissions'])
-            for key, value in self.data['permissions'].iteritems():
-                position = PROJECT_PERMISSIONS.index(key)
-                test_bit = Role.testBit(role.map, position)
-                if value == 1:
-                    if not test_bit:
-                        new_map = Role.toggleBit(role.map,
-                                                 position)
-                        role.update(set__map=new_map)
-                elif value == 0:
-                    if test_bit:
-                        new_map = Role.toggleBit(role.map,
-                                                 position)
-                        role.update(set__map=new_map)
-            permission_dict = self.generate_readable_permission_json(role)
-            response = {'permission_dict' : permission_dict,
-                        'permission_object': role.to_json()}
-            self.write(response)
-        except Role.DoesNotExist, error:
-            raise HTTPError(404, **{'reason': self.error_message(error)})
+
+        if role == 'admin':
+            self.send_error(400)
+        else:
+            try:
+                role = Role.objects.get(role=role, project=project)
+                self.data['permissions'] = ast.literal_eval(self.data['permissions'])
+                for key, value in self.data['permissions'].iteritems():
+                    position = PROJECT_PERMISSIONS.index(key)
+                    test_bit = Role.testBit(role.map, position)
+                    if value == 1:
+                        if not test_bit:
+                            new_map = Role.toggleBit(role.map,
+                                                     position)
+                            role.update(set__map=new_map)
+                    elif value == 0:
+                        if test_bit:
+                            new_map = Role.toggleBit(role.map,
+                                                     position)
+                            role.update(set__map=new_map)
+                permission_dict = self.generate_readable_permission_json(role)
+                response = {'permission_dict' : permission_dict,
+                            'permission_object': role.to_json()}
+                self.write(response)
+            except Role.DoesNotExist, error:
+                raise HTTPError(404, **{'reason': self.error_message(error)})
 
     @authenticated
     def delete(self, *args, **kwargs):
@@ -177,9 +181,13 @@ class PermissionHandler(BaseHandler):
                                              permalink=project_permalink)
         else:
             self.send_error(400)
-        roles = Role.objects.filter(project=project)
-        [role.delete() for role in roles if role.role in roles_to_be_deleted]
-        [project.roles.pop(project.roles.index(r)) for r
-         in roles_to_be_deleted if r in project.roles]
-        response['roles'] = json_dumper(list(Role.objects.filter(project=project)))
-        self.finish(json.dumps(response))
+
+        if any([x == 'admin' for x in roles_to_be_deleted]):
+            self.send_error(500)
+        else:
+            roles = Role.objects.filter(project=project)
+            [role.delete() for role in roles if role.role in roles_to_be_deleted]
+            [project.roles.pop(project.roles.index(r)) for r
+             in roles_to_be_deleted if r in project.roles]
+            response['roles'] = json_dumper(list(Role.objects.filter(project=project)))
+            self.finish(json.dumps(response))
