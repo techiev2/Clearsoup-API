@@ -44,7 +44,8 @@ class QueryObject(object):
             if self.meta and self.result:
                 for (key, val) in self.meta.iteritems():
                     if hasattr(self.result, key) and \
-                            hasattr(getattr(self.result, key), '__call__'):
+                            hasattr(getattr(self.result,
+                                            key), '__call__'):
                         self.result = getattr(
                             self.result, key).__call__(val)
 
@@ -85,8 +86,9 @@ class QueryObject(object):
         individual applications or from a models package
         specified as a application settings key.
         """
-        _models_package, _models_pack_import, _model = None, None, \
-                                                      None
+        _models_package, _models_pack_import = None, None
+        #_model = None
+
         if self.controller:
             _models_package = self.controller.settings.get(
                 'models_package')
@@ -103,7 +105,8 @@ class QueryObject(object):
                 'custom_msg': "Unable to import specified model"
             }
         except LookupError, le:
-            logging.log(9001, "Lookup error in model: %s" % le.message)
+            logging.log(9001,
+                        "Lookup error in model: %s" % le.message)
             self.result = None
             self.exception = {
                 'status_code': 400,
@@ -142,16 +145,16 @@ class QueryObject(object):
         data = []
         for item in self.result or []:
             item_dict = {}
-            for field in (field for field in fields if field not \
-                in exclude):
+            for field in (field for field in fields
+                          if field not in exclude):
                 item_data = getattr(item, field) if field not in (
                     'pk', 'id', '_id') else str(item.pk)
                 item_data = item_data if not hasattr(
-                    item_data, 'to_mongo') else item_data.to_json(
-                    fields=ref_fields.get(field,
-                        {}).get('fields', ()),
-                    exclude=ref_fields.get(field,
-                        {}).get('exclude', ()))
+                    item_data, 'to_mongo') else \
+                    item_data.to_json(fields=ref_fields.get(field,
+                                      {}).get('fields', ()),
+                                      exclude=ref_fields.get(field,
+                                      {}).get('exclude', ()))
 
                 item_dict.update({field: item_data})
 
@@ -160,17 +163,20 @@ class QueryObject(object):
         return data
 
     def delete(self, **kwargs):
-        """Object instance delete wrapper"""
+        """Object instance delete wrapper
+        :param kwargs: Keyword args for delete call to Mongoengine.
+        :type kwargs: dict
+        """
         if self.result and hasattr(self.result, 'delete') \
-            and hasattr(self.result.delete, '__call__'):
+                and hasattr(self.result.delete, '__call__'):
             try:
                 if self.controller:
-                    user = getattr(self.controller, 'user')
+                    #user = getattr(self.controller, 'user')
                     # if not user:
                     #     return {
                     #         'status_code': 401
                     #     }
-                    self.result.delete()
+                    self.result.delete(**kwargs)
                     return_val = {
                         'status_code': 204
                     }
@@ -179,24 +185,32 @@ class QueryObject(object):
                     return_val = {
                         'status_code': 204
                     }
-            except Exception, e:
+            except BaseException:
                 return_val = {
                     'status_code': 202,
                     'message': '{0} object deletion failed'.format(
-                                                   self.model_name)
+                        self.model_name)
                 }
         else:
             return_val = {
                 'status_code': 404
             }
-        if reduce(lambda x, y: x and y, [
-                    hasattr(self.controller, x) for x in ['ui', 'request']]):
+        if reduce(lambda x, y: x and y, [hasattr(
+                self.controller, x) for x in ['ui', 'request']]):
+
             setattr(self.controller, 'response', return_val)
             return_val = None
+
         return return_val
 
     def update(self, update_data):
-        """Update object instance wrapper for QueryObject"""
+        """Update object instance wrapper for QueryObject
+        :param update_data: Resultset updation data
+        :type update_data: dict
+        """
+        if not isinstance(update_data, dict):
+            raise BaseException("Invalid data. Dict data required")
+
         if update_data and self.result:
             # if not getattr(self.controller, 'user'):
             #     self.response = {'status_code': 401}
@@ -221,8 +235,8 @@ class QueryObject(object):
                 self.exception = {
                     'status_code': 422,
                     'custom_msg': iq_e.message[0].replace(
-                                    "Cannot resolve field",
-                                    "Invalid field").replace('"', '')
+                        "Cannot resolve field", "Invalid field")
+                    .replace('"', '')
                 }
             except Exception, exc:
                 self.result = None

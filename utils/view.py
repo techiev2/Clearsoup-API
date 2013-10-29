@@ -43,13 +43,15 @@ class BaseView(object):
         """
         View render method. Calls the appropriate render method
         depending on the format the Controller requests.
+        :param data: Data to render from view
+        :type data: dict
         :param response_format: Data format for response. Defaults
         to json string
         :type response_format: str
         """
-        data = data or {}
+        data = data if isinstance(data, dict) else {}
         self.controller.response = data if data and data != {} else \
-            self.controller.response
+            getattr(self.controller, 'response')
         response_format = response_format if isinstance(
             response_format, str) else 'json'
 
@@ -75,8 +77,8 @@ class BaseView(object):
         """
         # Validate controller response for serialization
         try:
-            self.controller.response = json.loads(json.dumps(self
-            .controller.response))
+            self.controller.response = json.loads(
+                json.dumps(getattr(self.controller, 'response')))
         except (TypeError, ValueError):
             self.controller.response = {
                 'status_code': 500,

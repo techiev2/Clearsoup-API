@@ -79,6 +79,23 @@ class SearchController(BaseHandler):
         response_data = {}
 
         count = 0
+        project = self.path_kwargs.get('project')
+        permalink = "%s/%s" % (self.current_user.username, project)\
+            if project else None
+
+        project = QueryObject(self,
+                              'Project', {
+                'permalink':  permalink}) if permalink else []
+
+        project = project.result[0] if project.count == 1 else None
+
+        if not project:
+            self.response = {
+                'status_code': 404,
+                'custom_msg': 'Invalid project scope'
+            }
+            self.view.as_json()
+            return
 
         for model_key, model_name in models:
             query_data = self.path_kwargs.get('query')
@@ -87,6 +104,7 @@ class SearchController(BaseHandler):
                 'title__icontains': query_data} if model_key in (
                 'S', 'T') else {'hashtags__icontains': query_data
             .lstrip('#').lower()}
+            query.update({'project': project})
             q = QueryObject(self, model_name, query)
             count += q.count
 
