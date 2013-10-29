@@ -60,7 +60,9 @@ TEAM_ROLES = ['Designer', 'Development Engineer', 'Lead',
               'Engineering Manager', 'Business Analyst',
               'Engineering Manager', 'Test Engineer']
 
-PROJECT_ROLES = ADMIN_ROLES + TEAM_ROLES
+#PROJECT_ROLES = ADMIN_ROLES + TEAM_ROLES
+PROJECT_ROLES = ('Administrator',)  # Fixed 10/29/13
+
 permission_map = {'Administrator': 2047, 'Project Manager': 2047,
                   'Designer': 283, 'Development Engineer': 283, 'Lead': 283,
                   'Engineering Manager': 283, 'Business Analyst': 283,
