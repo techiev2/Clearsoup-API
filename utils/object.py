@@ -5,19 +5,23 @@ __author__ = 'Sriram Velamur'
 
 import sys
 sys.dont_write_bytecode = True
-from mongoengine import (LookUpError, InvalidQueryError)
+from mongoengine import (LookUpError, InvalidQueryError,
+                         ValidationError, NotUniqueError)
 import logging
+import operator
+from mongoengine.queryset import Q
+from re import findall
 
 obj_logger = logging.getLogger(__name__)
 
-__all__ = ('QueryObject',)
+__all__ = ('QueryObject', 'CreateObject',)
 
 
 class QueryObject(object):
     """Queryobject wrapper class"""
 
     def __init__(self, controller=None, model=None, query=None,
-                 meta=None):
+                 meta=None, testing=False):
         """Query object wrapper class init"""
         if not isinstance(model, str):
             raise BaseException("QueryObject requires a valid model "
@@ -37,23 +41,41 @@ class QueryObject(object):
         # Import specified model and prepare for querying
         self._fetch_model()
 
+        self.result = self.model.objects if self.model \
+            else self.result
+
         try:
-            self.result = self.model.objects.filter(**self.query) if \
-                self.model else self.result
+            and_or_keys = {key: val for key, val in query.iteritems()
+                       if key.count('||') > 0 or key.count('&')}
+            reg_keys = {key: val for key, val in query.iteritems()
+                       if key not in and_or_keys.iterkeys()}
+            for key, val in and_or_keys.iteritems():
+                if key.count('||') > 0:
+                    keys = [Q(**{skey.strip(): val}) for skey in key\
+                        .split('||')]
+                    self.result = self.result.filter(
+                        reduce(operator.or_, keys))
+                if key.count('&') > 0:
+                    keys = [Q(**{skey.strip(): val}) for skey in key\
+                        .split('&')]
+                    self.result = self.result.filter(
+                        reduce(operator.and_ , keys))
+            self.result = self.result.filter(**reg_keys)
 
             if self.meta and self.result:
-                for (key, val) in self.meta.iteritems():
-                    if hasattr(self.result, key) and \
-                            hasattr(getattr(self.result,
-                                            key), '__call__'):
-                        self.result = getattr(
-                            self.result, key).__call__(val)
+                    for (key, val) in self.meta.iteritems():
+                        if hasattr(self.result, key) and \
+                                hasattr(getattr(self.result,
+                                                key), '__call__'):
+                            self.result = getattr(
+                                self.result, key).__call__(val)
 
             if self.count == 0:
                 self.exception = {
                     'status_code': 404,
                     'custom_msg': "No object found"
                 }
+
         except Exception, b_e:
             logging.log(9001, "Base Exception: %s" % b_e.message)
             self.result = None
@@ -248,3 +270,92 @@ class QueryObject(object):
         if reduce(lambda x, y: x and y, [
                 hasattr(self.controller, x) for x in ['ui', 'request']]):
             setattr(self.controller, 'response', self.json())
+
+
+class CreateObject(object):
+    def __init__(self, controller=None, model=None, data=None):
+        """
+        Object creation wrapper init
+        :param model:str Model to create an object instance of
+        :param data: Data for object instance creation
+        """
+        self.object, self.exception = None, None
+        if not model:
+            raise Exception("No model provided for object creation")
+        if not data:
+            raise Exception("No data provided for object creation")
+
+        self.controller = controller
+        self.model_name = model
+        self._fetch_model()
+
+        if self.model:
+            try:
+                self.data = data
+                self.object = self.model(**self.data)
+                self.object.save()
+            except ImportError, ie:
+                raise Exception("Unable to import specified models pack")
+            except ValidationError, v_e:
+                self.object = None
+                self.exception = {
+                    'status_code': 500,
+                    'custom_msg': ''
+                }
+                message = v_e.message
+                self.exception['custom_msg'] = message.split(') (')[1].rstrip(')')
+            except NotUniqueError, nu_err:
+                dup_msg = 'Duplicate value for {0} field'
+                field = findall(r'.*?\$(\w+)\_.*?', nu_err.message)
+                field = field[0] if field else None
+                self.object = None
+                self.exception = {
+                    'status_code': 500,
+                    'custom_msg': ''
+                }
+                if field:
+                    self.exception['custom_msg'] = dup_msg.format(field)
+
+        if controller:
+            setattr(controller, 'response',
+                    self.exception if self.exception else self.json())
+
+    def json(self):
+        return self.object.json() if hasattr(self.object, 'json') else\
+                 self.exception if self.exception else {'status_code': 500}
+
+    def _fetch_model(self):
+        """
+        Model fetcher helper method.
+        Imports the specified model passed to QueryObject init.
+        If a controller instance is present checks for models in the
+        individual applications or from a models package
+        specified as a application settings key.
+        """
+        _models_package, _models_pack_import = None, None
+        #_model = None
+
+        if self.controller:
+            _models_package = self.controller.settings.get(
+                'models_package')
+
+        try:
+            _models_pack_import = __import__(_models_package) if \
+                _models_package else None
+            setattr(self, 'model', getattr(_models_pack_import,
+                                      self.model_name))
+        except ImportError, ie:
+            logging.log(9001, "Import error: %s" % ie.message)
+            self.result = None
+            self.exception = {
+                'status_code': 500,
+                'custom_msg': "Unable to import specified model"
+            }
+        except LookupError, le:
+            logging.log(9001,
+                        "Lookup error in model: %s" % le.message)
+            self.result = None
+            self.exception = {
+                'status_code': 400,
+                'custom_msg': le.message
+            }

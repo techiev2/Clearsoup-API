@@ -79,13 +79,11 @@ class SearchController(BaseHandler):
         response_data = {}
 
         count = 0
-        project = self.path_kwargs.get('project')
-        permalink = "%s/%s" % (self.current_user.username, project)\
-            if project else None
 
-        project = QueryObject(self,
-                              'Project', {
-                'permalink':  permalink}) if permalink else []
+        project = QueryObject(self, 'Project', {
+            'title__iexact': self.path_kwargs.get('project'),
+            'admin||members__contains': self.current_user
+        })
 
         project = project.result[0] if project.count == 1 else None
 
