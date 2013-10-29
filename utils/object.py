@@ -7,6 +7,8 @@ import sys
 sys.dont_write_bytecode = True
 from mongoengine import (LookUpError, InvalidQueryError)
 import logging
+import operator
+from mongoengine.queryset import Q
 
 obj_logger = logging.getLogger(__name__)
 
@@ -17,7 +19,7 @@ class QueryObject(object):
     """Queryobject wrapper class"""
 
     def __init__(self, controller=None, model=None, query=None,
-                 meta=None):
+                 meta=None, testing=False):
         """Query object wrapper class init"""
         if not isinstance(model, str):
             raise BaseException("QueryObject requires a valid model "
@@ -37,23 +39,41 @@ class QueryObject(object):
         # Import specified model and prepare for querying
         self._fetch_model()
 
+        self.result = self.model.objects if self.model \
+            else self.result
+
         try:
-            self.result = self.model.objects.filter(**self.query) if \
-                self.model else self.result
+            and_or_keys = {key: val for key, val in query.iteritems()
+                       if key.count('||') > 0 or key.count('&')}
+            reg_keys = {key: val for key, val in query.iteritems()
+                       if key not in and_or_keys.iterkeys()}
+            for key, val in and_or_keys.iteritems():
+                if key.count('||') > 0:
+                    keys = [Q(**{skey.strip(): val}) for skey in key\
+                        .split('||')]
+                    self.result = self.result.filter(
+                        reduce(operator.or_, keys))
+                if key.count('&') > 0:
+                    keys = [Q(**{skey.strip(): val}) for skey in key\
+                        .split('&')]
+                    self.result = self.result.filter(
+                        reduce(operator.and_ , keys))
+            self.result = self.result.filter(**reg_keys)
 
             if self.meta and self.result:
-                for (key, val) in self.meta.iteritems():
-                    if hasattr(self.result, key) and \
-                            hasattr(getattr(self.result,
-                                            key), '__call__'):
-                        self.result = getattr(
-                            self.result, key).__call__(val)
+                    for (key, val) in self.meta.iteritems():
+                        if hasattr(self.result, key) and \
+                                hasattr(getattr(self.result,
+                                                key), '__call__'):
+                            self.result = getattr(
+                                self.result, key).__call__(val)
 
             if self.count == 0:
                 self.exception = {
                     'status_code': 404,
                     'custom_msg': "No object found"
                 }
+
         except Exception, b_e:
             logging.log(9001, "Base Exception: %s" % b_e.message)
             self.result = None
