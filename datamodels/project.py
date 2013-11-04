@@ -44,7 +44,8 @@ class Project(me.Document):
     is_active = me.BooleanField(default=True)
     description = me.StringField(max_length=500)
     roles = me.ListField(default=PROJECT_ROLES)
-    
+    is_todo = me.BooleanField(default=False)
+
     # these have to be moved to base model
     created_by = me.ReferenceField('User', required=True, dbref=True)
     updated_by = me.ReferenceField('User', required=True, dbref=True)
@@ -288,6 +289,8 @@ class Project(me.Document):
         self.permalink = self.get_permalink()
         super(Project, self).save(*args, **kwargs)
         self.calculate_sprints()
+        if self.sprints[0] == "Sprint -1":
+            self.update(set__is_todo = True)
         self.reload()
 
     def update(self, *args, **kwargs):
