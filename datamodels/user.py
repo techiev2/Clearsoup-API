@@ -23,7 +23,7 @@ class User(me.Document):
     profile = me.ReferenceField('UserProfile', dbref=True)
     # Org
     belongs_to = me.ListField(me.ReferenceField('Organization'))
-
+    roles = me.DictField(default={})
 
     meta = {
         "indexes": ["username", "email"]

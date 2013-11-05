@@ -9,10 +9,12 @@ from mongoengine.base import ValidationError
 from mongoengine import signals
 from datetime import datetime
 from utils.dumpers import json_dumper
+import logging
+from utils import QueryObject
 
 from datamodels.notification import NotificationManager
 from websocket.handlers import send_notifications
-import logging
+from requires.settings import TEAM_ROLES, ADMIN_ROLES
 
 MENTION_REGEX = r'@[A-Za-z0-9_.-]+'
 HASHTAG_REGEX = r'#[A-Za-z0-9_.-]+'
@@ -57,9 +59,27 @@ class Update(me.Document):
             # message, which is unnecessary repetition. Filter out
             # the unique
             mentions = set(document.mentions)
-            mentions = [user.username for user
-                        in document.project.members] if 'all' in \
-                    mentions else mentions
+            if 'all' in mentions:
+                mentions = [user.username for user
+                            in document.project.members]
+            else:
+                roles = ADMIN_ROLES + TEAM_ROLES
+
+                role_mentions = [role for role in mentions
+                                 if role in document.project.roles]
+
+                user_mentions = [mention for mention in mentions if
+                                 mention not in role_mentions]
+
+                users = QueryObject(None, 'User', {'username__in':
+                                               user_mentions})
+
+                users = [user.username for user in
+                         users.result if getattr(user, 'roles',
+                        {}).get(document.project.permalink) not in
+                                         role_mentions]
+
+                mentions = users + role_mentions
 
             notifications = {}
             for mentioned_user in mentions:
