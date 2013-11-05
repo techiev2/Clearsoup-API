@@ -12,11 +12,13 @@ from utils.dumpers import json_dumper
 
 from datamodels.notification import NotificationManager
 from websocket.handlers import send_notifications
+import logging
 
 MENTION_REGEX = r'@[A-Za-z0-9_.-]+'
 HASHTAG_REGEX = r'#[A-Za-z0-9_.-]+'
 UPDATE_REGEX = '^[a-zA-Z0-9-_,;.\?\/\s]*$'
 
+update_model_logger = logging.getLogger(__name__)
 
 __all__ = ('Update', 'TaskUpdate',)
 
@@ -55,6 +57,10 @@ class Update(me.Document):
             # message, which is unnecessary repetition. Filter out
             # the unique
             mentions = set(document.mentions)
+            mentions = [user.username for user
+                        in document.project.members] if 'all' in \
+                    mentions else mentions
+
             notifications = {}
             for mentioned_user in mentions:
                 try:
