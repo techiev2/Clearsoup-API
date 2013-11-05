@@ -81,7 +81,9 @@ class SearchController(BaseHandler):
         count = 0
 
         project = QueryObject(self, 'Project', {
-            'title__iexact': self.path_kwargs.get('project'),
+            'permalink__iexact': "%s/%s" % (
+                self.current_user.username,
+                self.path_kwargs.get('project')),
             'admin||members__contains': self.current_user
         })
 
@@ -97,8 +99,8 @@ class SearchController(BaseHandler):
 
         for model_key, model_name in models:
             query_data = self.path_kwargs.get('query')
-            query = {'sequence': query_data} if \
-                is_sequence_search else {
+            query = {'sequence': query_data.strip('S').strip('T')} \
+                if is_sequence_search else {
                 'title__icontains': query_data} if model_key in (
                 'S', 'T') else {'hashtags__icontains': query_data
             .lstrip('#').lower()}
