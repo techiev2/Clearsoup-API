@@ -73,7 +73,7 @@ class SearchController(BaseHandler):
         query = self.path_kwargs.get('query')
 
         is_sequence_search = True if sequence_search_matcher.match(
-            query) else False
+            query.upper()) else False
 
         models = self.models.iteritems()
         response_data = {}
@@ -99,8 +99,8 @@ class SearchController(BaseHandler):
 
         for model_key, model_name in models:
             query_data = self.path_kwargs.get('query')
-            query = {'sequence': query_data.strip('S').strip('T')} \
-                if is_sequence_search else {
+            query = {'sequence': query_data.upper().strip('S').strip(
+                'T')} if is_sequence_search else {
                     'title__icontains': query_data} if \
                 model_key in ('S', 'T') else \
                 {
