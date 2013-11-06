@@ -18,7 +18,8 @@ from datamodels.user import User
 from datamodels.permission import Role
 from utils.app import millisecondToDatetime
 from utils.dumpers import json_dumper
-from requires.settings import PROJECT_PERMISSIONS, permission_map
+from requires.settings import PROJECT_PERMISSIONS, permission_map, \
+    TEAM_ROLES
 
 
 class ProjectHandler(BaseHandler):
@@ -273,6 +274,8 @@ class ProjectSettingHandler(BaseHandler):
                                                      'project', 'updated_on', 
                                                      'created_on')
         response['roles'] = json_dumper(list(roles))
+        response['available_roles'] = [role for role in TEAM_ROLES
+                                       if role not in response['roles']]
         response['permissions'] = PROJECT_PERMISSIONS
         d = {}
         [d.update({role.role: self.generate_readable_permission_json(role)})
