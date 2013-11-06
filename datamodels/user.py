@@ -8,6 +8,7 @@ from organization import Organization
 from userprofile import UserProfile
 from utils.dumpers import  json_dumper
 from requires.settings import SETTINGS
+from utils import QueryObject
 
 sys.dont_write_bytecode = True
 
@@ -31,6 +32,28 @@ class User(me.Document):
 
     def __str__(self):
         return unicode(self.username)
+
+    @property
+    def user_role(self, project_name=None):
+        """
+        Returns role object for user in a specified project scope
+        :param project_name: Project name to scope role
+        :type project_name: str
+        :return: Role / None
+        """
+        permalink = "%s/%s" % (self.username, project_name)
+        if not project_name or not self.roles.get(permalink):
+            return None
+        project = QueryObject(None, 'Project', {
+            'permalink': permalink})
+        if not project.count == 1:
+            return None
+        project = project.result[0]
+        role = QueryObject(None, 'Role', {
+            'project': project,
+            'role': self.roles.get(permalink)})
+        return role[0] if role.count == 1 else None
+
 
     def to_json(self, fields=None, exclude=None):
         return json_dumper(self, fields, exclude)
