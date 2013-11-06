@@ -101,21 +101,48 @@ class SearchController(BaseHandler):
             query_data = self.path_kwargs.get('query')
             query = {'sequence': query_data.strip('S').strip('T')} \
                 if is_sequence_search else {
-                'title__icontains': query_data} if model_key in (
-                'S', 'T') else {'hashtags__icontains': query_data
-            .lstrip('#').lower()}
+                    'title__icontains': query_data} if \
+                model_key in ('S', 'T') else \
+                {
+                    'hashtags__icontains':
+                    query_data.lstrip('#').lower()
+                }
             query.update({'project': project})
             q = QueryObject(self, model_name, query)
             count += q.count
 
             response_key = 'stories' if model_key == 'S' else \
                 'tasks' if model_key == 'T' else 'updates'
-            if q.exception:
-                search_logger.log(8888, q.exception)
+
             if response_key:
-                response_data.update({response_key: q.json(
-                    fields=self.fields.get(model_key))} \
-                    if not q.exception else {})
+                if response_key in ('tasks',):
+                    tasks_data = []
+                    for item in q.result:
+                        item_json = item.to_json(
+                            fields=self.fields.get(model_key)) if \
+                            not q.exception else {}
+                        item_updates = QueryObject(
+                            self, 'TaskUpdate', {
+                                'task': item
+                            })
+                        if not item_updates.exception:
+                            item_json.update(
+                                {'updates': [x.to_json() for x in
+                                             item_updates.result]})
+                        else:
+                            item_json.update({
+                                'updates': []
+                            })
+
+                        tasks_data.append(item_json)
+
+                    response = {response_key: tasks_data}
+
+                else:
+                    response = {response_key: q.json(
+                        fields=self.fields.get(model_key))} \
+                        if not q.exception else {}
+            response_data.update(response)
 
         response_data.update({'count': count})
 
