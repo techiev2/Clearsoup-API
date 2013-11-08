@@ -21,7 +21,6 @@ from datamodels.update import TaskUpdate
 from utils.app import millisecondToDatetime
 from utils.dumpers import json_dumper
 from requires.settings import PROJECT_PERMISSIONS
-from apiclient.errors import HttpError
 
 
 class TaskHandler(BaseHandler):
