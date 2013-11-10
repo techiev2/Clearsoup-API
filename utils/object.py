@@ -114,6 +114,8 @@ class QueryObject(object):
         if self.controller:
             _models_package = self.controller.settings.get(
                 'models_package')
+        else:
+            _models_package = 'datamodels'
 
         try:
             _models_pack_import = __import__(_models_package) if \
