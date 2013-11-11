@@ -162,9 +162,7 @@ class TaskHandler(BaseHandler):
             else:
                 query = {
                     'project': project,
-                    'is_active': True,
-                    'assigned_to': self.current_user
-#                    'is_pmo': False
+                    'is_active': True
                 }
                 # If sprint is set, get the tasks only for that sprint
                 sprint_number = self.get_argument('sprint', None)
