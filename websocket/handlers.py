@@ -61,7 +61,7 @@ class AppWebSocketHandler(WebSocketHandler):
                 'socket': self,
                 'data': {}
             }
-            print "User %s connected to websocket" % user
+            #print "User %s connected to websocket" % user
             # Start ping scheduler if not running
             if not ping_scheduler._running and CLIENTS:
                 ping_scheduler.start()
@@ -86,7 +86,7 @@ class AppWebSocketHandler(WebSocketHandler):
                     message_handler = globals()[message_type](websocket_id=websocket_id)
                     message_handler.process(self, message)
             except Exception, e:
-                print e
+                #print e
                 response = {
                     'error': True,
                     'message': str(e)
@@ -100,9 +100,9 @@ class AppWebSocketHandler(WebSocketHandler):
         # Get the key with the websocket_id
         key = [k for k in CLIENTS.iterkeys() if k[1] == websocket_id]
         if key:
-            print key[0]
+            #print key[0]
             del CLIENTS[key[0]]
-            print "User %s disconnected from websocket" % key[0][0]
+            #print "User %s disconnected from websocket" % key[0][0]
         # If no clients, disable scheduler
         if ping_scheduler._running and not CLIENTS:
             ping_scheduler.stop()
@@ -131,7 +131,7 @@ class NotificationMessage(WebSocketMessage):
 
     def update_last_id(self, last_id):
         # CLIENTS
-        print 'updating id for socket %s with %d ' % (self._websocket_id, last_id)
+        #print 'updating id for socket %s with %d ' % (self._websocket_id, last_id)
         CLIENTS[self._websocket_id]['data']['last_id'] = last_id
 
 
@@ -160,7 +160,7 @@ def ping():
         'server_time': now
         })
     for key, value in CLIENTS.iteritems():
-        print "pinging ", key[0]
+        #print "pinging ", key[0]
         value['socket'].ping(payload)
 
 
