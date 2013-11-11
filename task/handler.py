@@ -65,7 +65,7 @@ class TaskHandler(BaseHandler):
                     raise HTTPError(404, **{'reason': 'User not in project.'})
                 self.data['assigned_to'] = user
                 self.data['current_action'] = 'start'
-                self.data['current_state'] = 'Pending'
+                self.data['current_state'] = 'Assigned'
             else:
                 self.data.pop('assigned_to')
                 self.data['current_action'] = 'assign'
@@ -211,9 +211,11 @@ class TaskHandler(BaseHandler):
             if not val:
                 raise HTTPError(403, **{'reason': 'Efforts should be only in integers.'})
         
-        if task.assigned_to and (task.assigned_to != self.current_user):
+        if (task.created_by == self.current_user) or (
+          self.current_user in task.project.admin):
+            pass
+        elif task.assigned_to and (task.assigned_to != self.current_user):
             raise ValidationError('You were not assigned this task')
-
 
     @authenticated
     def post(self, *args, **kwargs):
