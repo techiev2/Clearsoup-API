@@ -164,6 +164,7 @@ class Task(me.Document):
             self._state_machine.next = self.task_next_state
         return self._state_machine
 
+
     def task_state_transition(self, data=None, user=None):
         '''
         event is same as action
@@ -181,45 +182,23 @@ class Task(me.Document):
         }
         # If there is no assigned user, and the action is start, 
         # then assign it to the current user
-        if (event == 'start'):
+        if event == 'start':
             qParams['set__assigned_to'] = user
-        if data.get('username', None):
+        # For assign, if the src and dst states are Assigned,
+        # Fysom will not trigger the event. In that case, we need
+        # to manually do the operation
+        elif event == 'assign' and data.get('username', None):
             qParams['set__assigned_to'] = data['username']
+            self.change_assignee(qParams)
 
         # Trigger the state transition
         getattr(self.state_machine, event)(params=qParams)
-        # if event in ['assign', 'accept', 'reassign']:
-        #     try:
-        #         if event == 'reassign':
-        #             self._state_machine.reassign()
-        #         else:
-        #             self._state_machine.assign()
-        #         self.update(set__assigned_to=data['username'],
-        #                     set__updated_at=datetime.utcnow(),
-        #                     set__updated_by=user)
-        #     except FysomError:
-        #         raise ValidationError('This operation is not allowed')
-        # elif event == 'close':
-        #     try:
-        #         self._state_machine.close()
-        #         self.update(set__updated_at=datetime.utcnow(),
-        #                     set__updated_by=user)
-        #     except FysomError:
-        #         raise ValidationError('This operation is not allowed')
-        # elif event == 'start':
-        #     try:
-        #         self._state_machine.start()
-        #         self.update(set__updated_at=datetime.utcnow(),
-        #                     set__updated_by=user)
-        #     except FysomError, er:
-        #         raise ValidationError('This operation is not allowed')
-        # elif event == 'reopen':
-        #     try:
-        #         self._state_machine.reopen()
-        #         self.update(set__updated_at=datetime.utcnow(),
-        #                     set__updated_by=user)
-        # except FysomError, er:
-        #     raise ValidationError('This operation is not allowed')
+
+    def change_assignee(self, qParams):
+        qParams['set__current_state'] = 'Assigned'
+        self.update(**qParams)
+        update = "Reassigned the task to %s" % (self.assigned_to['username'])
+        self.create_task_update(update)
 
     def task_on_state_change(self, e):
         e.params['set__current_state'] = e.dst
@@ -227,13 +206,15 @@ class Task(me.Document):
         self.state_machine.current_state = self.current_state
         self.state_machine.current = self.current_state
         text = 'Changed task from %s to %s' %(e.src, e.dst)
+        self.create_task_update(text)
+
+    def create_task_update(self, update):
         task_update = TaskUpdate(task=self,
                                  project=self.project,
                                  created_by=self.updated_by,
                                  updated_by=self.updated_by,
-                                 text=text)
+                                 text=update)
         task_update.save()
-
 
     def task_next_state(self):
         action = states['default']['events'][self._state_machine.current_state]['name']
