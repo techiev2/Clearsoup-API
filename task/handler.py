@@ -17,6 +17,7 @@ from datamodels.project import Project, Sprint
 from datamodels.story import Story
 from datamodels.task import Task, TASK_TYPES
 from datamodels.team import Team
+from datamodels.permission import Role
 from datamodels.update import TaskUpdate
 from utils.app import millisecondToDatetime
 from utils.dumpers import json_dumper
@@ -121,7 +122,7 @@ class TaskHandler(BaseHandler):
 
     def check_permission(self, permission):
         permission_flag = False
-        if ProjectPermission.testBit(permission.map,
+        if Role.testBit(permission.map,
                              PROJECT_PERMISSIONS.index('can_delete_task')):
             permission_flag = True
         return permission_flag
@@ -417,6 +418,13 @@ class TaskCommentHandler(BaseHandler):
             raise HTTPError(500, **{'reason':self.error_message(error)})
         self.write(task_update.to_json())
 
+    def check_permission(self, permission):
+        permission_flag = False
+        if Role.testBit(permission.map,
+                             PROJECT_PERMISSIONS.index('can_delete_task')):
+            permission_flag = True
+        return permission_flag
+
     @authenticated
     def delete(self, *args, **kwargs):
         '''
@@ -434,14 +442,14 @@ class TaskCommentHandler(BaseHandler):
         project = self.get_project_object(project_id=project_id,
                                               permalink=project_permalink)
         if taskCommentId:
-            permission = None
+            team = None
             try:
-                permission = ProjectPermission.objects.get(project=project,
+                team = Team.objects.get(project=project,
                                                        user=self.current_user)
-            except ProjectPermission.DoesNotExist:
-                msg = 'Not authorized to delete tasks of this project'
+            except Team.DoesNotExist:
+                msg = 'Not authorized to delete comments.'
                 raise HTTPError(500, **{'reason':msg})
-            if self.check_permission(permission):
+            if self.check_permission(team.role):
                 try:
                     task_update = TaskUpdate.objects.get(id=taskCommentId,
                                               is_active=True)
@@ -451,7 +459,7 @@ class TaskCommentHandler(BaseHandler):
                 response = {'message': 'Successfully deleted.',
                             'status': 200}
             else:
-                msg = 'Not authorized to delete task of this project'
+                msg = 'Not authorized to delete comments.'
                 raise HTTPError(500, **{'reason':msg})
         self.finish(json.dumps(response))
 
