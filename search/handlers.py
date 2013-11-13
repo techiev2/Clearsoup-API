@@ -33,7 +33,7 @@ class SearchController(BaseHandler):
         self.fields = {
             'T': ('sequence', 'created_by', 'title', 'task_type'),
             'S': ('sequence', 'created_by', 'title', 'priority'),
-            'U': ('text', 'created_by', 'id')
+            'U': ('text', 'created_by', 'id', 'created_at')
         }
         self.models = {
             'T': 'Task',
