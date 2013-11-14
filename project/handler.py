@@ -167,16 +167,8 @@ class ProjectHandler(BaseHandler):
             project.update(set__roles=set(list(project.roles)))
         self.write(project.to_json())
 
-#
-#    def set_user_permission(self, project):
-#        p = Role(project=project,
-#                  user=self.current_user,
-#                              role="Administrator",
-#                              group=group)
-#        p.save()
     def create_role(self, project, creating_project):
         if creating_project:
-            print project.roles
             for role in project.roles:
                 r = Role(project=project,
                         role=role,
@@ -184,7 +176,6 @@ class ProjectHandler(BaseHandler):
                         created_by=self.current_user,
                         updated_by=self.current_user)
                 r.save()
-                print r
         else:
             pass
 
