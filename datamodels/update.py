@@ -35,7 +35,7 @@ class Update(me.Document):
     mentions = me.ListField(required=False)
     hashtags = me.ListField(required=False)
 
-    def json(self, fields=None, exclude=None):
+    def to_json(self, fields=None, exclude=None):
         return json_dumper(self, fields, exclude)
 
     @classmethod

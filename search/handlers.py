@@ -33,7 +33,7 @@ class SearchController(BaseHandler):
         self.fields = {
             'T': ('sequence', 'created_by', 'title', 'task_type'),
             'S': ('sequence', 'created_by', 'title', 'priority'),
-            'U': ('text', 'created_by', 'id')
+            'U': ('text', 'created_by', 'id', 'created_at')
         }
         self.models = {
             'T': 'Task',
@@ -82,13 +82,12 @@ class SearchController(BaseHandler):
 
         project = QueryObject(self, 'Project', {
             'permalink__iexact': "%s/%s" % (
-                self.current_user.username,
+                self.path_kwargs.get('user'),
                 self.path_kwargs.get('project')),
             'admin||members__contains': self.current_user
         })
 
         project = project.result[0] if project.count == 1 else None
-
         if not project:
             self.response = {
                 'status_code': 404,

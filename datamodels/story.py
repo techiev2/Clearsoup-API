@@ -113,7 +113,7 @@ class Story(me.Document):
         # import is done here to avoid cyclic references.
         from datamodels.task import Task
         tasks = Task.objects.filter(story=self,
-                                    is_active=True).order_by('sequence')
+                                    is_active=True).order_by('-sequence')
         return tasks
 
     def update_sprint_metadata(self, old_sprint=None):
