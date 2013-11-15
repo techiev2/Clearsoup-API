@@ -24,36 +24,10 @@ update_model_logger = logging.getLogger(__name__)
 
 __all__ = ('Update', 'TaskUpdate',)
 
-class Update(me.Document):
-    # Meta
-    created_by = me.ReferenceField('User', required=True, dbref=True)
-    created_at = me.DateTimeField(default=datetime.utcnow())
 
-    # Fields
-    project = me.ReferenceField('Project', required=True, dbref=True)
-    text = me.StringField(max_length=140, required=True)
-    mentions = me.ListField(required=False)
-    hashtags = me.ListField(required=False)
-
-    def to_json(self, fields=None, exclude=None):
-        return json_dumper(self, fields, exclude)
-
-    @classmethod
-    def pre_save(cls, sender, document, **kwargs):
-        '''
-            validating max length and mentioned user
-        '''
-        mentions = re.findall(MENTION_REGEX, document.text)
-        if len(mentions) > 0:
-            document.mentions = [mention[1:] for mention in mentions]
-        if document.created_by not in document.project.members:
-            raise ValidationError('You are not a member of this project')
-        if len(document.text) > 140:
-            raise ValidationError('Update exceeds 140 characters')
-
-
-    @classmethod
-    def post_save(cls, sender, document, **kwargs):
+class SendUpdateNotification:
+    @staticmethod
+    def send_update_notification(document):
         if document.mentions:
             # A user can be mentioned more than once in the same
             # message, which is unnecessary repetition. Filter out
@@ -96,6 +70,39 @@ class Update(me.Document):
             try:
                 send_notifications(notifications)
             except: pass
+
+
+class Update(me.Document):
+    # Meta
+    created_by = me.ReferenceField('User', required=True, dbref=True)
+    created_at = me.DateTimeField(default=datetime.utcnow())
+
+    # Fields
+    project = me.ReferenceField('Project', required=True, dbref=True)
+    text = me.StringField(max_length=140, required=True)
+    mentions = me.ListField(required=False)
+    hashtags = me.ListField(required=False)
+
+    def to_json(self, fields=None, exclude=None):
+        return json_dumper(self, fields, exclude)
+
+    @classmethod
+    def pre_save(cls, sender, document, **kwargs):
+        '''
+            validating max length and mentioned user
+        '''
+        mentions = re.findall(MENTION_REGEX, document.text)
+        if len(mentions) > 0:
+            document.mentions = [mention[1:] for mention in mentions]
+        if document.created_by not in document.project.members:
+            raise ValidationError('You are not a member of this project')
+        if len(document.text) > 140:
+            raise ValidationError('Update exceeds 140 characters')
+
+
+    @classmethod
+    def post_save(cls, sender, document, **kwargs):
+        SendUpdateNotification.send_update_notification(document)
 
     def save(self, *args, **kwargs):
         # Explicitly set the date as mongo(engine|db) seems to
@@ -141,6 +148,10 @@ class TaskUpdate(me.Document):
         if len(document.text) > 140:
             raise ValidationError('Update exceeds 140 characters')
 
+    @classmethod
+    def post_save(cls, sender, document, **kwargs):
+        SendUpdateNotification.send_update_notification(document)
+    
     def save(self, *args, **kwargs):
         # Explicitly set the date as mongo(engine|db) seems to
         # cache the date
@@ -167,3 +178,4 @@ signals.pre_save.connect(TaskUpdate.pre_save, sender=Update)
 # Post save for update to create the necessary notifications
 # for the user(s) mentioned in the update
 signals.post_save.connect(Update.post_save, sender=Update)
+signals.post_save.connect(TaskUpdate.post_save, sender=TaskUpdate)

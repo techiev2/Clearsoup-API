@@ -260,12 +260,10 @@ class Project(me.Document):
         else:
             if last_sprint.sequence != 0:
                 start_date = last_sprint.end_date + timedelta(days=1)
-                end_date = start_date + timedelta(days=duration)
-                sequence = last_sprint.sequence + 1
             else:
                 start_date = self.start_date
-                end_date = start_date + timedelta(days=duration)
-                sequence = last_sprint.sequence + 1
+            end_date = start_date + timedelta(days=duration)
+            sequence = last_sprint.sequence + 1
         try:
             sprint = Sprint(start_date=start_date,
                             end_date=end_date,
@@ -275,7 +273,8 @@ class Project(me.Document):
                             updated_by=user)
             sprint.save()
             self.sprints.append('Sprint ' + str(sprint.sequence))
-            self.update(set__sprints=self.sprints)
+            self.update(set__sprints=self.sprints,
+                        set__end_date=end_date)
             return sprint
         except Exception, error:
             raise ValidationError(error)
@@ -347,7 +346,7 @@ class Sprint(me.Document):
         from datamodels.story import Story
 #        [s.update(set__is_active=True) for s in Story.objects]
         return Story.objects.filter(sprint=self,
-                                    is_active=True).order_by('created_at')
+                                    is_active=True).order_by('-created_at')
 
     def to_json(self, fields=None, exclude=None):
         return json_dumper(self, fields, exclude)
