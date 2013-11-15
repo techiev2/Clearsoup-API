@@ -33,7 +33,7 @@ class SearchController(BaseHandler):
         self.fields = {
             'T': ('sequence', 'created_by', 'title', 'task_type'),
             'S': ('sequence', 'created_by', 'title', 'priority'),
-            'U': ('text', 'created_by', 'id', 'created_at')
+            'U': ('text', 'created_by', 'created_at', 'pk')
         }
         self.models = {
             'T': 'Task',
@@ -95,6 +95,7 @@ class SearchController(BaseHandler):
                 if query[0].lower() == 's' else 'Update'
             query = {'sequence': int(query[1:]), 'project': project}
             sequence_search = QueryObject(self, model, query, meta)
+
             count += sequence_search.count
             response_key = 'tasks' if model == 'Task' else 'stories'
             model_key = 'T' if model == 'Task' else 'S'
@@ -103,18 +104,41 @@ class SearchController(BaseHandler):
                 not sequence_search.exception else {}
             response_data.update(response)
 
+        # Search in Task/Story titles
+        else:
+            models = ('Task', 'Story')
+            query = {
+                'title__icontains': self.path_kwargs.get('query'),
+                'project': project
+            }
+            for model in models:
+                title_search = QueryObject(self, model, query, meta)
+
+                count += title_search.count
+                response_key = 'tasks' if model == 'Task' else 'stories'
+                model_key = 'T' if model == 'Task' else 'S'
+                response = {response_key: title_search.json(
+                    fields=self.fields.get(model_key))} if \
+                    not title_search.exception else {}
+                response_data.update(response)
+
         # Fetch updates irrespective of sequence search True/False
         model = 'Update'
         update_query = {'hashtags__icontains': self.path_kwargs.get(
             'query').lower(), 'project': project}
         update_search = QueryObject(self, model, update_query, meta)
         count += update_search.count
-        response = {'updates': [obj.to_json(
-            fields=self.fields.get('U')) for obj in
+
+        response = {'updates': [obj.to_json(fields=('id', 'text',
+            'created_by', 'created_at',)) for obj in
             update_search.result]} if not\
             update_search.exception else {}
-        response_data.update(response)
 
+        # response = {'updates': update_search.json(
+        #                        fields=self.fields.get('U')) if \
+        #                        update_search.result else []}
+
+        response_data.update(response)
         response_data.update({'count': count})
 
         self.response = {
