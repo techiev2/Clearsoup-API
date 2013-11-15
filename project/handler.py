@@ -49,13 +49,6 @@ class ProjectHandler(BaseHandler):
         self.data['updated_by'] = self.current_user
 
 
-    # def get_context(self, context):
-    #     """
-    #     Returns the user or project context object
-    #     """
-    #     try:
-
-
     @authenticated
     def get(self, *args, **kwargs):
         """
