@@ -181,7 +181,7 @@ class TaskHandler(BaseHandler):
                     
                 response['task'] = json_dumper(list(
                                     Task.objects.filter(**query).exclude('project','story')
-                                    .order_by('-sequence')
+                                    .order_by('-updated_at')
                                 ))
                 response['metadata'] = sprint_metadata
         self.finish(json.dumps(response))
