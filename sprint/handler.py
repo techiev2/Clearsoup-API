@@ -102,10 +102,7 @@ class SprintHandler(BaseHandler):
             for each in xrange(number_of_sprints):
                 try:
                     sprint = project.add_sprint(self.current_user)
-                    print '*' * 20
-                    print sprint
                     sprint.update_sprint_metadata()
-                    print sprint
                     response['Sprint :' + str(sprint.sequence)] = sprint.to_json()
                 except ValidationError, error:
                     raise HTTPError(500, **{'reason':self.error_message(error)})
