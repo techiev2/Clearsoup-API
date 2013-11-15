@@ -119,11 +119,12 @@ class StoryHandler(BaseHandler):
             except Story.DoesNotExist, error:
                 raise HTTPError(500, **{'reason':self.error_message(error)})
         elif not story_id and project:
-                response = json_dumper(Story.objects.filter(project=project))
+                response = json_dumper(Story.objects.filter(project=project
+                                    ).order_by('-created_at'))
         else:
             response = json_dumper(Story.objects.filter(is_active=True,
                                     created_by=self.current_user
-                                    ).order_by('created_at'))
+                                    ).order_by('-created_at'))
         self.finish(json.dumps(response))
 
     def validate_stories(self, project=None, stories=None):

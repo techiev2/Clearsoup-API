@@ -346,7 +346,7 @@ class Sprint(me.Document):
         from datamodels.story import Story
 #        [s.update(set__is_active=True) for s in Story.objects]
         return Story.objects.filter(sprint=self,
-                                    is_active=True).order_by('created_at')
+                                    is_active=True).order_by('-created_at')
 
     def to_json(self, fields=None, exclude=None):
         return json_dumper(self, fields, exclude)
