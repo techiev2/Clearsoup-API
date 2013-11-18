@@ -93,6 +93,11 @@ class TeamHandler(BaseHandler):
             project = self.get_project_object(project_id=None,
                                               permalink=project_permalink)
         self.clean_request(project)
+
+        if self._current_user not in project.admin:
+            raise HTTPError(403,
+                reason="Not authorized to perform this operation")
+
         response = {}
         response['members'] = []
         for each in self.data['members']:
