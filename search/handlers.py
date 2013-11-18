@@ -94,6 +94,7 @@ class SearchController(BaseHandler):
             model = 'Task' if query[0].lower() == 't' else 'Story' \
                 if query[0].lower() == 's' else 'Update'
             query = {'sequence': int(query[1:]), 'project': project}
+            query.update({'is_active': True})
             sequence_search = QueryObject(self, model, query, meta)
 
             count += sequence_search.count
