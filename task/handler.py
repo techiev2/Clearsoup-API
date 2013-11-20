@@ -120,12 +120,19 @@ class TaskHandler(BaseHandler):
                 pass
         return task
 
-    def check_permission(self, permission):
-        permission_flag = False
-        if Role.testBit(permission.map,
-                             PROJECT_PERMISSIONS.index('can_delete_task')):
-            permission_flag = True
-        return permission_flag
+    def check_permission(self, project, value):
+        team = None
+        try:
+            team = Team.objects.get(project=project,
+                                       user=self.current_user)
+            permission_flag = False
+            if Role.testBit(team.role.map,
+                                 PROJECT_PERMISSIONS.index(value)):
+                permission_flag = True
+            return permission_flag
+        except Team.DoesNotExist:
+            msg = 'Not authorized to perform this action'
+            raise HTTPError(500, **{'reason':msg})
 
     def validate_tasks(self, project=None, tasks=None):
         '''
@@ -256,12 +263,16 @@ class TaskHandler(BaseHandler):
     @authenticated
     def put(self, *args, **kwargs):
         self.clean_request()
-        task = Task(**self.data)
-        try:
-            task.save(validate=True, clean=True)
-        except ValidationError, error:
-            raise HTTPError(500, **{'reason':self.error_message(error)})
-        self.write(task.to_json())
+        if self.check_permission(self.data['project'], 'can_add_task'):
+            task = Task(**self.data)
+            try:
+                task.save(validate=True, clean=True)
+            except ValidationError, error:
+                raise HTTPError(500, **{'reason':self.error_message(error)})
+            self.write(task.to_json())
+        else:
+            msg = 'Not authorized to add task'
+            raise HTTPError(500, **{'reason':msg})
 
     @authenticated
     def delete(self, *args, **kwargs):
@@ -277,14 +288,7 @@ class TaskHandler(BaseHandler):
             project = self.get_project_object(project_id=None,
                                               permalink=project_permalink)
         if tasks:
-            team = None
-            try:
-                team = Team.objects.get(project=project,
-                                                       user=self.current_user)
-            except Team.DoesNotExist:
-                msg = 'Not authorized to delete tasks of this project'
-                raise HTTPError(500, **{'reason':msg})
-            if self.check_permission(team.role):
+            if self.check_permission(project, 'can_delete_task'):
                 if self.validate_tasks(project=project, tasks=tasks):
                     for task in tasks:
                         try:
@@ -296,10 +300,12 @@ class TaskHandler(BaseHandler):
                             raise HTTPError(500, **{'reason':self.error_message(error)})
                     response = {'message': 'Successfully deleted.',
                                 'status': 200}
+                self.finish(json.dumps(response))
             else:
+                print 312
                 msg = 'Not authorized to delete task of this project'
+                print msg
                 raise HTTPError(500, **{'reason':msg})
-        self.finish(json.dumps(response))
 
 
 class TaskCommentHandler(BaseHandler):
