@@ -75,16 +75,35 @@ class StoryHandler(BaseHandler):
                 raise HTTPError(404, **{'reason': self.error_message(error)})
         return project
 
+    def check_permission(self, project, value):
+        team = None
+        try:
+            team = Team.objects.get(project=project,
+                                       user=self.current_user)
+            permission_flag = False
+            if Role.testBit(team.role.map,
+                                 PROJECT_PERMISSIONS.index(value)):
+                permission_flag = True
+            return permission_flag
+        except Team.DoesNotExist:
+            msg = 'Not permitted to perform this action'
+            raise HTTPError(500, **{'reason':msg})
+
     @authenticated
     def put(self, *args, **kwargs):
         self.clean_request()
-        story = Story(**self.data)
-        try:
-            story.save(validate=True, clean=True)
-            ProjectMetadata.update_story_metadata(story)
-        except ValidationError, error:
-            raise HTTPError(500, **{'reason':self.error_message(error)})
-        self.write(story.to_json())
+        if self.check_permission(self.data['project'], value='can_add_story'):
+            story = Story(**self.data)
+            try:
+                story.save(validate=True, clean=True)
+                ProjectMetadata.update_story_metadata(story)
+            except ValidationError, error:
+                raise HTTPError(500, **{'reason':self.error_message(error)})
+            self.write(story.to_json())
+        else:
+            msg = 'Not permitted to create story for this project'
+            raise HTTPError(500, **{'reason':msg})
+
 
     def get_project_stories(self, project_id):
         project = self.get_valid_project(project_id=project_id)
@@ -145,14 +164,6 @@ class StoryHandler(BaseHandler):
             if id == len(stories) - 1: flag = True
         return flag 
 
-    def check_permission(self, role):
-        permission_flag = False
-        if Role.testBit(role.map,
-                             PROJECT_PERMISSIONS.index('can_delete_story')):
-            permission_flag = True
-        return permission_flag
-        
-
     @authenticated
     def post(self, *args, **kwargs):
         story_id = self.get_argument('storyId', None)
@@ -175,35 +186,39 @@ class StoryHandler(BaseHandler):
                                              permalink=project_permalink)
         else:
             self.send_error(400)
-        if project and story_id:
-            try:
-                story = Story.objects.get(sequence=int(story_id),
-                                              project=project)
-                temp_data = {'set__'+field: self.data[field] for field 
-                                 in Story._fields.keys() 
-                                 if field in self.data.keys()}
-                temp_data.update({'set__updated_by': self.current_user})
-                story.update(**temp_data)
-            except Story.DoesNotExist, error:
-                raise HTTPError(500, **{'reason':self.error_message(error)})
-            self.write(story.to_json())
-        elif stories:
-            if self.validate_stories(stories=stories, project=project):
-                for story in stories:
-                    try:
-                        story = Story.objects.get(sequence=int(story),
+        if self.check_permission(project, 'can_edit_story'):
+            if project and story_id:
+                try:
+                    story = Story.objects.get(sequence=int(story_id),
                                                   project=project)
-                        old_sprint = story.sprint
-                        story.update(set__sprint=self.data['sprint'])
-                        story.update_sprint_metadata(old_sprint=old_sprint)
-                    except Story.DoesNotExist, error:
-                        raise HTTPError(500, **{'reason':self.error_message(error)})
-                response = {'message': 'Successfully moved to sprint %s.' % str(
-                                                self.data['sprint'].sequence),
-                            'status': 200}
-            self.write(response)
+                    temp_data = {'set__'+field: self.data[field] for field 
+                                     in Story._fields.keys() 
+                                     if field in self.data.keys()}
+                    temp_data.update({'set__updated_by': self.current_user})
+                    story.update(**temp_data)
+                except Story.DoesNotExist, error:
+                    raise HTTPError(500, **{'reason':self.error_message(error)})
+                self.write(story.to_json())
+            elif stories:
+                if self.validate_stories(stories=stories, project=project):
+                    for story in stories:
+                        try:
+                            story = Story.objects.get(sequence=int(story),
+                                                      project=project)
+                            old_sprint = story.sprint
+                            story.update(set__sprint=self.data['sprint'])
+                            story.update_sprint_metadata(old_sprint=old_sprint)
+                        except Story.DoesNotExist, error:
+                            raise HTTPError(500, **{'reason':self.error_message(error)})
+                    response = {'message': 'Successfully moved to sprint %s.' % str(
+                                                    self.data['sprint'].sequence),
+                                'status': 200}
+                self.write(response)
+            else:
+                self.send_error(404)
         else:
-            self.send_error(404)
+            msg = 'Not permitted to modify story for this project'
+            raise HTTPError(500, **{'reason':msg})
 
     @authenticated
     def delete(self, *args, **kwargs):
@@ -217,14 +232,7 @@ class StoryHandler(BaseHandler):
         if not stories and not project:
             self.send_error(404)
         else:
-            team = None
-            try:
-                team = Team.objects.get(project=project,
-                                               user=self.current_user)
-            except Team.DoesNotExist:
-                msg = 'Not authorized to delete stories of this project'
-                raise HTTPError(500, **{'reason':msg})
-            if self.check_permission(team.role):
+            if self.check_permission(project, value='can_delete_story'):
                 if self.validate_stories(project=project, stories=stories):
                     for story in stories:
                         try:
@@ -242,7 +250,7 @@ class StoryHandler(BaseHandler):
                     response = {'message': 'Successfully deleted.',
                                 'status': 200}
             else:
-                msg = 'Not authorized to delete stories of this project'
+                msg = 'Not permitted to delete stories of this project'
                 raise HTTPError(500, **{'reason':msg})
         self.finish(json.dumps(response))
 
