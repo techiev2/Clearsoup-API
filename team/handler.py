@@ -14,6 +14,8 @@ from mongoengine.errors import ValidationError
 from utils.dumpers import json_dumper
 from datamodels.permission import Role
 import json
+from requires.settings import PROJECT_PERMISSIONS
+
 
 class TeamHandler(BaseHandler):
        
@@ -39,7 +41,6 @@ class TeamHandler(BaseHandler):
                 try:
                     role = Role.objects.get(role=each['role'],
                                             project=project)
-                    print role
                 except Role.DoesNotExist:
                     raise HTTPError(404, **{'reason': 'Please create '+each['role']+'from project settings first.'})
                 self.data['members'].append({'user': user,
@@ -69,12 +70,27 @@ class TeamHandler(BaseHandler):
                 raise HTTPError(404, **{'reason': self.error_message(error)})
         return project
 
+    def check_permission(self, project, value):
+        team = None
+        try:
+            team = Team.objects.get(project=project,
+                                       user=self.current_user)
+            permission_flag = False
+            if Role.testBit(team.role.map,
+                                 PROJECT_PERMISSIONS.index(value)):
+                permission_flag = True
+            return permission_flag
+        except Team.DoesNotExist:
+            msg = 'Not permitted to perform this action'
+            raise HTTPError(500, **{'reason':msg})
+
     @authenticated
     def get(self,*args, **kwargs):
         project_id = self.get_argument('projectId', None)
         project = self.get_project_object(project_id=project_id,
                                           permalink=None)
-        members = list(Team.objects.filter(project=project).exclude("project"))
+        members = list(Team.objects.filter(project=project).exclude("project",
+                                                    "created_by", "updated_by"))
         self.write(json.dumps(json_dumper(members)))
 
     @authenticated
@@ -94,10 +110,9 @@ class TeamHandler(BaseHandler):
                                               permalink=project_permalink)
         self.clean_request(project)
 
-        if self._current_user not in project.admin:
+        if not self.check_permission(project, 'can_add_member'):
             raise HTTPError(403,
-                reason="Not authorized to perform this operation")
-
+                reason="Not permitted to add members to this project")
         response = {}
         response['members'] = []
         for each in self.data['members']:
@@ -120,8 +135,6 @@ class TeamHandler(BaseHandler):
                 response['members'].append(new_user.to_json())
             elif existing_user:
                 response['members'].append(existing_user.to_json())
-        print new_user
-        
         self.write(json_dumper(response))
 
     def clean_delete_request(self):
@@ -135,7 +148,6 @@ class TeamHandler(BaseHandler):
             except User.DoesNotExist:
                 raise HTTPError(404, **{'reason': each['email'] + ' not found '})
 
-
     @authenticated
     def delete(self, *args, **kwargs):
         project_id = self.get_argument('projectId', None)
@@ -147,6 +159,9 @@ class TeamHandler(BaseHandler):
         elif project_permalink:
             project = self.get_project_object(project_id=None,
                                               permalink=project_permalink)
+        if not self.check_permission(project, 'can_delete_member'):
+            raise HTTPError(403,
+                reason="Not permitted to delete members of this project")
         self.clean_delete_request()
         existing_members = project.members
         [Team.objects.filter(user=each,project=project).delete()
