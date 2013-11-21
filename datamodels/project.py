@@ -176,7 +176,7 @@ class Project(me.Document):
             # in case duration is of form 7K + 1, one sprint has to be added
             difference = project_duration - (self.duration * sprints)
             
-            if difference > 0 and difference < 7:
+            if difference > 0 and difference < self.duration:
                 sprints += 1
             sprint_list = ['Backlog']
             sprint_list.extend(['Sprint ' + str(
