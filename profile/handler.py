@@ -73,7 +73,7 @@ class ProfileHandler(BaseHandler):
 class ResetPasswordHandler(BaseHandler, object):
 
     REQUIRED_FIELDS = {
-        'POST': ('email', 'token',)
+        'POST': ('password', 'token',)
     }
 
     """Reset password handler"""
@@ -89,7 +89,6 @@ class ResetPasswordHandler(BaseHandler, object):
                 token=self.data.get('token'))
             if token.count() == 1:
                 self.current_user = token[0].user
-                print(token, self.current_user)
                 temp_data = {'set__password': SessionManager.encryptPassword(
                     self.data.get('password'))}
                 self.current_user.update(**temp_data)
