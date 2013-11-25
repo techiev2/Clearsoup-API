@@ -11,6 +11,7 @@ from datamodels.user import User, PasswordResetToken
 from datamodels.userprofile import UserProfile
 from datamodels.session import SessionManager
 from mongoengine.errors import NotUniqueError
+from datetime import datetime as dt
 
 
 class ProfileHandler(BaseHandler):
@@ -86,7 +87,8 @@ class ResetPasswordHandler(BaseHandler, object):
         if 'password' in self.data.iterkeys() \
                 and 'token' in self.data.iterkeys():
             token = PasswordResetToken.objects.filter(
-                token=self.data.get('token'))
+                token=self.data.get('token'),
+                valid_until__gt=dt.utcnow())
             if token.count() == 1:
                 self.current_user = token[0].user
                 temp_data = {'set__password': SessionManager.encryptPassword(
