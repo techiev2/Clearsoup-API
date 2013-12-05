@@ -13,7 +13,7 @@ from functools import wraps
 
 from datamodels.session import SessionManager
 from datamodels.project import Project
-
+from settings import SUPERUSERS
 
 CONTENT_TYPES = {
     'json': 'application/json'
@@ -75,7 +75,7 @@ class BaseHandler(tornado.web.RequestHandler):
     def error_message(self, error):
         '''
         Return a readable error message.
-        '''       
+        '''
         if hasattr(error, 'to_dict'):
             if error.to_dict().values():
                 message = error.to_dict().values()[0]
@@ -106,7 +106,7 @@ class BaseHandler(tornado.web.RequestHandler):
 
 
     def get_current_user(self):
-        """ 
+        """
         Load the user from the session token
         Used by tornado.web.authenticated decorator
         """
@@ -134,7 +134,7 @@ class BaseHandler(tornado.web.RequestHandler):
                 auth_decoded = base64.decodestring(auth_header[6:])
                 username, password = auth_decoded.split(':', 2)
                 # Validate and return user
-                return SessionManager.validateLogin(username=username, 
+                return SessionManager.validateLogin(username=username,
                                                     password=password)
             except Exception:
                 return None
@@ -153,6 +153,18 @@ def authenticated(method):
         return method(self, *args, **kwargs)
     return wrapper
 
+def superuser(method):
+    """
+    Checks if the current user is a superuser
+    List of users are declared in settings.py
+    """
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        if not self.current_user or \
+        self.current_user.username not in SUPERUSERS:
+            raise HTTPError(403, 'Unauthorized access')
+        return method(self, *args, **kwargs)
+    return wrapper
 
 def validate_path_arg(method):
     """

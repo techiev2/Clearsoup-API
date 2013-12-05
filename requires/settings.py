@@ -30,7 +30,9 @@ GEN_PATH = lambda path: os.path.join(os.getcwd(), path)
 
 SETTINGS = {
     'APPS': ['profile','project', 'story','auth', 'core', 'user', 'team',
-             'permission', 'sprint', 'update', 'task', 'search', 'websocket'],
+             'permission', 'sprint', 'update', 'task', 'search', 'websocket',
+             'admin',
+            ],
     # Security
     'cookie': 'token',  # Specify the cookie variable name
     'login_url': '/api/authenticate/',  # Login path for the application
@@ -67,6 +69,8 @@ permission_map = {'Administrator': 2047, 'Project Manager': 2047,
                   'Designer': 283, 'Development Engineer': 283, 'Lead': 283,
                   'Engineering Manager': 283, 'Business Analyst': 283,
                   'Engineering Manager': 283, 'Test Engineer': 283}
+
+SUPERUSERS = ('suk','somesh','techiev2','srinath')
 
 URLS = []
 
