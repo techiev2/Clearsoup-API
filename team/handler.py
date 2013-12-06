@@ -26,6 +26,21 @@ class TeamHandler(BaseHandler):
         }
     data = {}
 
+    def _get_role(self, invite_data):
+        """
+        Role get helper
+        """
+        try:
+            role = Role.objects.get(
+                role=invite_data['role'],
+                project=self.project)
+            return role
+        except Role.DoesNotExist:
+            raise HTTPError(404, **{
+                'reason': 'Please create %s from project settings '
+                          'first.' % invite_data['role']})
+
+
     def clean_request(self, project):
         '''
             function to remove additional data key send in request.
@@ -38,20 +53,17 @@ class TeamHandler(BaseHandler):
         for each in self.data['data']:
             try:
                 user = User.objects.get(email=each['email'])
-                try:
-                    role = Role.objects.get(role=each['role'],
-                                            project=project)
-                except Role.DoesNotExist:
-                    raise HTTPError(404, **{'reason': 'Please create '+each['role']+'from project settings first.'})
+                role = self._get_role(each)
                 self.data['members'].append({'user': user,
                                              'role': role})
                 self.data['new_members'].append(user)
             except User.DoesNotExist:
                 self.invitations.append(
-                    self.create_invitation(each['email']))
+                    self.create_invitation(each['email'],
+                    self._get_role(each)))
                 #raise HTTPError(404, **{'reason': each['email'] + ' not found '})
 
-    def create_invitation(self, email):
+    def create_invitation(self, email, role):
         """
         Create invitation objects if email for
         user is not found in the system
@@ -59,7 +71,8 @@ class TeamHandler(BaseHandler):
         invitation = Invitation(
             email=email,
             project=self.project,
-            invited_by=self.current_user)
+            invited_by=self.current_user,
+            role=role)
         invitation.save()
         return json_dumper(invitation)
 

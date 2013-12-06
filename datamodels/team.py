@@ -77,13 +77,13 @@ class Invitation(me.Document):
     valid_until = me.DateTimeField(default=td(days=1) + dt.utcnow())
     invited_by = me.ReferenceField('User', required=True)
     code = me.StringField()
+    role = me.ReferenceField('Role', required=True)
 
     def save(self, *args, **kwargs):
         """
         Overridden save method for Invitation model to generate
         invitation code
         """
-
         self.code = ''.join([random.choice(
             string.ascii_letters + string.hexdigits) for n in
              xrange(30)])
