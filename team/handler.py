@@ -9,7 +9,7 @@ from tornado.web import HTTPError
 from requires.base import BaseHandler, authenticated
 from datamodels.project import Project
 from datamodels.user import User
-from datamodels.team import Team
+from datamodels.team import Team, Invitation
 from mongoengine.errors import ValidationError
 from utils.dumpers import json_dumper
 from datamodels.permission import Role
@@ -26,6 +26,21 @@ class TeamHandler(BaseHandler):
         }
     data = {}
 
+    def _get_role(self, invite_data):
+        """
+        Role get helper
+        """
+        try:
+            role = Role.objects.get(
+                role=invite_data['role'],
+                project=self.project)
+            return role
+        except Role.DoesNotExist:
+            raise HTTPError(404, **{
+                'reason': 'Please create %s from project settings '
+                          'first.' % invite_data['role']})
+
+
     def clean_request(self, project):
         '''
             function to remove additional data key send in request.
@@ -38,16 +53,28 @@ class TeamHandler(BaseHandler):
         for each in self.data['data']:
             try:
                 user = User.objects.get(email=each['email'])
-                try:
-                    role = Role.objects.get(role=each['role'],
-                                            project=project)
-                except Role.DoesNotExist:
-                    raise HTTPError(404, **{'reason': 'Please create '+each['role']+'from project settings first.'})
+                role = self._get_role(each)
                 self.data['members'].append({'user': user,
                                              'role': role})
                 self.data['new_members'].append(user)
             except User.DoesNotExist:
-                raise HTTPError(404, **{'reason': each['email'] + ' not found '})
+                self.invitations.append(
+                    self.create_invitation(each['email'],
+                    self._get_role(each)))
+                #raise HTTPError(404, **{'reason': each['email'] + ' not found '})
+
+    def create_invitation(self, email, role):
+        """
+        Create invitation objects if email for
+        user is not found in the system
+        """
+        invitation = Invitation(
+            email=email,
+            project=self.project,
+            invited_by=self.current_user,
+            role=role)
+        invitation.save()
+        return json_dumper(invitation)
 
     def get_project_object(self, project_id=None, permalink=None):
         if not project_id and not permalink:
@@ -89,6 +116,7 @@ class TeamHandler(BaseHandler):
         project_id = self.get_argument('projectId', None)
         project = self.get_project_object(project_id=project_id,
                                           permalink=None)
+        self.project = project
         members = list(Team.objects.filter(project=project).exclude("project",
                                                     "created_by", "updated_by"))
         self.write(json.dumps(json_dumper(members)))
@@ -102,12 +130,15 @@ class TeamHandler(BaseHandler):
         project_id = self.get_argument('projectId', None)
         project_permalink = self.get_argument('project_permalink', None)
         project = None
+        self.invitations = []
         if project_id:
             project = self.get_project_object(project_id=project_id,
                                               permalink=None)
         elif project_permalink:
             project = self.get_project_object(project_id=None,
                                               permalink=project_permalink)
+
+        self.project = project
         self.clean_request(project)
 
         if not self.check_permission(project, 'can_add_member'):
@@ -135,6 +166,7 @@ class TeamHandler(BaseHandler):
                 response['members'].append(new_user.to_json())
             elif existing_user:
                 response['members'].append(existing_user.to_json())
+        response.update({'invitations': self.invitations})
         self.write(json_dumper(response))
 
     def clean_delete_request(self):

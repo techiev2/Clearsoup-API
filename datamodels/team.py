@@ -16,6 +16,9 @@ from datamodels.user import User
 from datamodels.permission import Role
 from utils.dumpers import json_dumper
 from requires.settings import ADMIN_ROLES, TEAM_ROLES
+from datetime import datetime as dt, timedelta as td
+import string
+import random
 
 
 class Team(me.Document):
@@ -64,3 +67,24 @@ class Team(me.Document):
         self.reload()
 
 
+class Invitation(me.Document):
+    """Invitation data model"""
+
+    email = me.EmailField(required=True)
+    project = me.ReferenceField('Project', required=True)
+
+    created_at = me.DateTimeField(default=dt.utcnow())
+    valid_until = me.DateTimeField(default=td(days=1) + dt.utcnow())
+    invited_by = me.ReferenceField('User', required=True)
+    code = me.StringField()
+    role = me.ReferenceField('Role', required=True)
+
+    def save(self, *args, **kwargs):
+        """
+        Overridden save method for Invitation model to generate
+        invitation code
+        """
+        self.code = ''.join([random.choice(
+            string.ascii_letters + string.hexdigits) for n in
+             xrange(30)])
+        super(Invitation, self).save(*args, **kwargs)
