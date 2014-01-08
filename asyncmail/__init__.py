@@ -5,17 +5,16 @@ Created on 22-Aug-2013
 '''
 
 import sys
-from tornado.web import RequestHandler
+# from tornado.web import RequestHandler
 sys.dont_write_bytecode = True
 
-from tornadomail.message import EmailMessage, EmailMultiAlternatives
+from tornadomail.message import EmailMessage  # , EmailMultiAlternatives
 from requires.settings import ClearSoupApp
 
 
 class AsycnEmail(ClearSoupApp):
     '''
-    handler for sending async email. 
-    
+    handler for sending async email.
     '''
     def __init__(self, *args, **kwargs):
         self._subject = None
@@ -37,7 +36,7 @@ class AsycnEmail(ClearSoupApp):
         '''
         self._subject = ''
         self._message = ''
-    
+
     def send_email(self, email):
         try:
             message = EmailMessage(
