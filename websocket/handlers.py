@@ -1,3 +1,8 @@
+# coding=utf-8
+"""
+Websocket app handlers module.
+Provides handlers for working with Websockets
+"""
 import sys
 sys.dont_write_bytecode = True
 
@@ -12,7 +17,11 @@ from datamodels.session import SessionManager
 WEBSOCKET_REFRESH_TIMER = 30 * 1000
 WEBSOCKET_PING_TIMER = 60 * 1000
 # Maintain a list of clients connected
-CLIENTS = dict()
+
+
+# Dict literal is efficient compared to the constructor use
+# Doug hellmann on the internals ~ http://bit.ly/1cQqgzt
+CLIENTS = {}
 
 
 class AppWebSocketHandler(WebSocketHandler):

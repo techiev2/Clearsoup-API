@@ -1,7 +1,8 @@
-from handlers import AppWebSocketHandler
+# coding=utf-8
+"""Websocket app urls module. Provides url maps for Websocket handlers"""
+from .handlers import AppWebSocketHandler
 
-URLS = [('/_socket', AppWebSocketHandler),
-        ]
+URLS = [('/_socket', AppWebSocketHandler)]
 
 __all__ = ['URLS']
 
