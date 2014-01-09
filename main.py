@@ -36,5 +36,6 @@ if __name__ == '__main__':
     except ConnectionError:
         sys.exit("Unable to connect to DB")
     except AutoReconnect:
-        sys.exit("Please check if MongoDB is running on port %d" % SETTINGS[
-                                                                'mongo_port'])
+        sys.exit(
+            "Please check if MongoDB is running on port %d"
+            % SETTINGS['mongo_port'])

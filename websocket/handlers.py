@@ -2,20 +2,18 @@ import sys
 sys.dont_write_bytecode = True
 
 from tornado.websocket import WebSocketHandler
-from tornado.ioloop import IOLoop, PeriodicCallback
-
+from tornado.ioloop import PeriodicCallback
 import json
-import datetime
 import time
-import traceback
 
-from datamodels.notification import Notification, NotificationManager
+from datamodels.notification import NotificationManager
 from datamodels.session import SessionManager
 
 WEBSOCKET_REFRESH_TIMER = 30 * 1000
 WEBSOCKET_PING_TIMER = 60 * 1000
 # Maintain a list of clients connected
 CLIENTS = dict()
+
 
 class AppWebSocketHandler(WebSocketHandler):
     """
@@ -66,7 +64,6 @@ class AppWebSocketHandler(WebSocketHandler):
             if not ping_scheduler._running and CLIENTS:
                 ping_scheduler.start()
 
-
     def on_message(self, message):
         '''
         Everytime the client sends a message, it is received
@@ -83,7 +80,8 @@ class AppWebSocketHandler(WebSocketHandler):
                 message_type += 'Message'
                 # Check if our message type has a processor
                 if message_type in globals():
-                    message_handler = globals()[message_type](websocket_id=websocket_id)
+                    message_handler = globals()[message_type](
+                        websocket_id=websocket_id)
                     message_handler.process(self, message)
             except Exception, e:
                 #print e
@@ -92,7 +90,6 @@ class AppWebSocketHandler(WebSocketHandler):
                     'message': str(e)
                 }
                 self.write_message(json.dumps(response))
-
 
     def on_close(self):
         websocket_id = self.get_id()
@@ -131,7 +128,6 @@ class NotificationMessage(WebSocketMessage):
 
     def update_last_id(self, last_id):
         # CLIENTS
-        #print 'updating id for socket %s with %d ' % (self._websocket_id, last_id)
         CLIENTS[self._websocket_id]['data']['last_id'] = last_id
 
 
@@ -143,7 +139,8 @@ def send_notifications(notifications):
         if key[0] in notifications:
             socket = value['socket']
             try:
-                notification_html = socket.render_string('_notification.html',
+                notification_html = socket.render_string(
+                    '_notification.html',
                     notification=notifications[key[0]])
                 response = {
                     'message_type': 'notification',
@@ -158,14 +155,15 @@ def ping():
     now = time.time()
     payload = json.dumps({
         'server_time': now
-        })
+    })
     for key, value in CLIENTS.iteritems():
         #print "pinging ", key[0]
         value['socket'].ping(payload)
 
 
 # Websocket scheduler
-#websocket_scheduler = PeriodicCallback(send_notifications, WEBSOCKET_REFRESH_TIMER)
-#websocket_scheduler.start()
+# websocket_scheduler = PeriodicCallback(
+#    send_notifications, WEBSOCKET_REFRESH_TIMER)
+# websocket_scheduler.start()
 ping_scheduler = PeriodicCallback(ping, WEBSOCKET_PING_TIMER)
 ping_scheduler.start()
